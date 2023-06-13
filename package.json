@@ -5,6 +5,7 @@
     "build:noisegate": "wat2wasm -o noisegate/noisegate.wasm noisegate/noisegate.wat",
     "build:vocalcanceler": "wat2wasm -o vocalcanceler/vocalcanceler.wasm vocalcanceler/vocalcanceler.wat",
     "build:noisesuppressor": "emcc -O0 -Wall --no-entry -s EXPORTED_RUNTIME_METHODS=\"['ccall', 'cwrap', 'UTF8ToString']\" -s EXPORTED_FUNCTIONS=\"['_malloc', '_free']\" -o noisesuppressor/noisesuppressor.js noisesuppressor/noisesuppressor.cpp",
+    "build:pitchshifter": "emcc -O0 -Wall --no-entry -s EXPORTED_RUNTIME_METHODS=\"['ccall', 'cwrap', 'UTF8ToString']\" -s EXPORTED_FUNCTIONS=\"['_malloc', '_free']\" -o pitchshifter/pitchshifter.js pitchshifter/pitchshifter.cpp",
     "build": "npm run clean && run-p build:*",
     "dev": "node server.js"
   },
