@@ -1,0 +1,10 @@
+.DS_Store
+
+*.log
+
+node_modules/
+
+*.c
+*.cpp
+*.ts
+*.wat
