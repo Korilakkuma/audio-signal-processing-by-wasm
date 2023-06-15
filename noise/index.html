@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Noise | Audio Signal Processing by WebAssembly</title>
+    <link rel="stylesheet" href="../app.css" />
+  </head>
+  <body>
+    <section>
+      <nav><a href="../">TOP</a> &gt;&gt; Noise</nav>
+      <div>
+        <select id="select-noise">
+          <option value="" selected>SELECT NOISE</option>
+          <option value="whitenoise">White Noise</option>
+          <option value="pinknoise">Pink Noise</option>
+          <option value="browniannoise">Brownian Noise</option>
+        </select>
+      </div>
+    </section>
+    <script>
+      function setupNoiseGenerator() {
+        WebAssembly
+          .instantiateStreaming(fetch('./noise.wasm'))
+          .then(async ({ instance }) => {
+            const audiocontext = new AudioContext();
+            const processor    = audiocontext.createScriptProcessor(0, 2, 2);
+
+            await audiocontext.resume();
+
+            processor.connect(audiocontext.destination);
+
+            const bufferSize = processor.bufferSize;
+
+            let type = '';
+
+            processor.onaudioprocess = (event) => {
+              const outputLs = event.outputBuffer.getChannelData(0);
+              const outputRs = event.outputBuffer.getChannelData(1);
+
+              for (let i = 0; i < bufferSize; i++) {
+                let output = 0;
+
+                switch (type) {
+                  case 'whitenoise':
+                    output = instance.exports.whitenoise(Math.random());
+                    break;
+                  case 'pinknoise':
+                    output = instance.exports.pinknoise(Math.random());
+                    break;
+                  case 'browniannoise':
+                    output = instance.exports.browniannoise(Math.random());
+                    break;
+                  default:
+                    break;
+                }
+
+                outputLs[i] = output;
+                outputRs[i] = output;
+              }
+            };
+
+            document.getElementById('select-noise').addEventListener('change', (event) => {
+              type = event.currentTarget.value;
+            }, false);
+          })
+          .catch(console.error)
+          .finally(() => {
+            document.removeEventListener('click', setupNoiseGenerator, false);
+          });
+      }
+
+      document.addEventListener('click', setupNoiseGenerator, false);
+    </script>
+  </body>
+</html>

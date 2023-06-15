@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Noise Gate | Audio Signal Processing by WebAssembly</title>
+    <link rel="stylesheet" href="../app.css" />
+  </head>
+  <body>
+    <section>
+      <nav><a href="../">TOP</a> &gt; &gt; Noise Gate</nav>
+      <dt>
+        <dt><label for="range-level">Level: <span id="output-level">0</span></label></dt>
+        <dd><input type="range" id="range-level" value="0" min="0" max="1" step="0.05" /></dd>
+      </dt>
+    </section>
+    <script>
+      WebAssembly
+        .instantiateStreaming(fetch('./noisegate.wasm'))
+        .then(({ instance }) => {
+          const audiocontext = new AudioContext();
+          const processor    = audiocontext.createScriptProcessor(2048, 2, 2);
+
+          let level = 0;
+
+          navigator.mediaDevices.getUserMedia({ audio : true })
+            .then(async (stream) => {
+              await audiocontext.resume();
+
+              const source = audiocontext.createMediaStreamSource(stream);
+
+              source.connect(processor);
+              processor.connect(audiocontext.destination);
+
+              const bufferSize = processor.bufferSize;
+
+              processor.onaudioprocess = (event) => {
+                const inputLs  = event.inputBuffer.getChannelData(0);
+                const inputRs  = event.inputBuffer.getChannelData(1);
+                const outputLs = event.outputBuffer.getChannelData(0);
+                const outputRs = event.outputBuffer.getChannelData(1);
+
+                for (let i = 0; i < bufferSize; i++) {
+                  const whitenoise = 0.25 * ((2 * Math.random()) - 1.0);  // +- 0.25
+
+                  outputLs[i] = instance.exports.noisegate((((1.5 * inputLs[i]) + whitenoise) / 2), level);
+                  outputRs[i] = instance.exports.noisegate((((1.5 * inputRs[i]) + whitenoise) / 2), level);
+                }
+              };
+            })
+            .catch(console.error);
+
+          document.getElementById('range-level').addEventListener('input', (event) => {
+            const range = event.currentTarget;
+
+            level = range.valueAsNumber;
+            document.getElementById('output-level').textContent = range.value;
+          }, false);
+        })
+        .catch(console.error);
+    </script>
+  </body>
+</html>

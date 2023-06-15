@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pitch Shifter &amp; Whammy | Audio Signal Processing by WebAssembly</title>
+    <link rel="stylesheet" href="../app.css" />
+  </head>
+  <body>
+    <section>
+      <nav><a href="../">TOP</a> &gt; &gt; Pitch Shifter</nav>
+      <dt>
+        <dt><label for="file-uploader">Upload Audio File</label></dt>
+        <dd><input type="file" id="file-uploader" /></dd>
+        <dt><label for="checkbox-whammy">Whammy</label></dt>
+        <dd><input type="checkbox" id="checkbox-whammy" /></dd>
+        <dt><label for="range-pitch">Pitch: <span id="output-pitch">1</span></label></dt>
+        <dd><input type="range" id="range-pitch" value="1" min="0.5" max="4" step="0.05" /></dd>
+      </dt>
+    </section>
+    <script src="./pitchshifter.js"></script>
+    <script>
+      const audiocontext = new AudioContext();
+      const processor    = audiocontext.createScriptProcessor(8192, 2, 2);
+
+      let audio = null;
+      let pitch = 1;
+      let whammyTimer = null;
+
+      async function startAudio(file) {
+        await audiocontext.resume();
+
+        const pitchshifter = Module.cwrap('pitchshifter', null, ['number', 'Float32Array', 'Float32Array', 'Float32Array', 'Float32Array', 'number']);
+
+        audio = new Audio(window.URL.createObjectURL(file));
+
+        const source = audiocontext.createMediaElementSource(audio);
+
+        source.connect(processor);
+        processor.connect(audiocontext.destination);
+
+        const bufferSize = processor.bufferSize;
+
+        processor.onaudioprocess = (event) => {
+          const inputLs  = event.inputBuffer.getChannelData(0);
+          const inputRs  = event.inputBuffer.getChannelData(1);
+          const outputLs = event.outputBuffer.getChannelData(0);
+          const outputRs = event.outputBuffer.getChannelData(1);
+
+          const pointerInputRealL  = Module._malloc(bufferSize * Module.HEAPF32.BYTES_PER_ELEMENT);
+          const pointerInputRealR  = Module._malloc(bufferSize * Module.HEAPF32.BYTES_PER_ELEMENT);
+          const pointerInputImagL  = Module._malloc(bufferSize * Module.HEAPF32.BYTES_PER_ELEMENT);
+          const pointerInputImagR  = Module._malloc(bufferSize * Module.HEAPF32.BYTES_PER_ELEMENT);
+          const pointerOutputRealL = Module._malloc(bufferSize * Module.HEAPF32.BYTES_PER_ELEMENT);
+          const pointerOutputRealR = Module._malloc(bufferSize * Module.HEAPF32.BYTES_PER_ELEMENT);
+          const pointerOutputImagL = Module._malloc(bufferSize * Module.HEAPF32.BYTES_PER_ELEMENT);
+          const pointerOutputImagR = Module._malloc(bufferSize * Module.HEAPF32.BYTES_PER_ELEMENT);
+
+          const inputRealLs = new Float32Array(inputLs);
+          const inputRealRs = new Float32Array(inputRs);
+          const inputImagLs = new Float32Array(bufferSize);
+          const inputImagRs = new Float32Array(bufferSize);
+
+          const outputRealLs = new Float32Array(Module.HEAPF32.buffer, pointerOutputRealL, bufferSize);
+          const outputRealRs = new Float32Array(Module.HEAPF32.buffer, pointerOutputRealR, bufferSize);
+          const outputImagLs = new Float32Array(Module.HEAPF32.buffer, pointerOutputImagL, bufferSize);
+          const outputImagRs = new Float32Array(Module.HEAPF32.buffer, pointerOutputImagR, bufferSize);
+
+          Module.HEAPF32.set(inputRealLs,  pointerInputRealL / Module.HEAPF32.BYTES_PER_ELEMENT);
+          Module.HEAPF32.set(inputRealRs,  pointerInputRealR / Module.HEAPF32.BYTES_PER_ELEMENT);
+          Module.HEAPF32.set(inputImagLs,  pointerInputImagL / Module.HEAPF32.BYTES_PER_ELEMENT);
+          Module.HEAPF32.set(inputImagRs,  pointerInputImagR / Module.HEAPF32.BYTES_PER_ELEMENT);
+          Module.HEAPF32.set(outputRealLs, pointerOutputRealL / Module.HEAPF32.BYTES_PER_ELEMENT);
+          Module.HEAPF32.set(outputRealRs, pointerOutputRealR / Module.HEAPF32.BYTES_PER_ELEMENT);
+          Module.HEAPF32.set(outputImagLs, pointerOutputImagL / Module.HEAPF32.BYTES_PER_ELEMENT);
+          Module.HEAPF32.set(outputImagRs, pointerOutputImagR / Module.HEAPF32.BYTES_PER_ELEMENT);
+
+          pitchshifter(pitch, pointerInputRealL, pointerInputImagL, pointerOutputRealL, pointerOutputImagL, bufferSize);
+          pitchshifter(pitch, pointerInputRealR, pointerInputImagR, pointerOutputRealR, pointerOutputImagR, bufferSize);
+
+          outputLs.set(outputRealLs);
+          outputRs.set(outputRealRs);
+
+          Module._free(pointerInputRealL);
+          Module._free(pointerInputImagL);
+          Module._free(pointerInputRealR);
+          Module._free(pointerInputImagR);
+          Module._free(pointerOutputRealL);
+          Module._free(pointerOutputImagL);
+          Module._free(pointerOutputRealR);
+          Module._free(pointerOutputImagR);
+        };
+
+        audio.play();
+      }
+
+      document.getElementById('file-uploader').addEventListener('change', async (event) => {
+        processor.onaudioprocess = null;
+        processor.disconnect(0);
+
+        if (audio) {
+          audio.pause();
+        }
+
+        startAudio(event.target.files[0]);
+      }, false);
+
+      document.getElementById('range-pitch').addEventListener('input', (event) => {
+        const range = event.currentTarget;
+
+        pitch = range.valueAsNumber;
+        document.getElementById('output-pitch').textContent = range.value;
+      }, false);
+
+      document.getElementById('checkbox-whammy').addEventListener('click', (event) => {
+        const checkbox = event.currentTarget;
+
+        if (checkbox.checked) {
+          const diff = 3 - pitch;
+          const rate = diff / 50;
+
+          whammyTimer = window.setInterval(() => {
+            pitch += rate;
+
+            document.getElementById('range-pitch').valueAsNumber = pitch;
+            document.getElementById('output-pitch').textContent = Math.floor(pitch * 100) / 100;
+
+            if (pitch >= 3) {
+              window.clearInterval(whammyTimer);
+              whammyTimer = null;
+            }
+          }, 10);
+        } else {
+          window.clearInterval(whammyTimer);
+          whammyTimer = null;
+        }
+      }, false);
+    </script>
+  </body>
+</html>
