@@ -1,12 +1,18 @@
 {
   "scripts": {
     "clean": "rm -rf ./**/*.{js,wasm}",
-    "build:noise": "wat2wasm -o noise/noise.wasm noise/noise.wat",
-    "build:noisegate": "wat2wasm -o noisegate/noisegate.wasm noisegate/noisegate.wat",
-    "build:vocalcanceler": "wat2wasm -o vocalcanceler/vocalcanceler.wasm vocalcanceler/vocalcanceler.wat",
-    "build:noisesuppressor": "emcc -O0 -Wall --no-entry -s EXPORTED_RUNTIME_METHODS=\"['ccall', 'cwrap', 'UTF8ToString']\" -s EXPORTED_FUNCTIONS=\"['_malloc', '_free']\" -o noisesuppressor/noisesuppressor.js noisesuppressor/noisesuppressor.cpp",
-    "build:pitchshifter": "emcc -O0 -Wall --no-entry -s EXPORTED_RUNTIME_METHODS=\"['ccall', 'cwrap', 'UTF8ToString']\" -s EXPORTED_FUNCTIONS=\"['_malloc', '_free']\" -o pitchshifter/pitchshifter.js pitchshifter/pitchshifter.cpp",
-    "build": "npm run clean && run-p build:*",
+    "build:dev:noise": "wat2wasm -o noise/noise.wasm noise/noise.wat",
+    "build:dev:noisegate": "wat2wasm -o noisegate/noisegate.wasm noisegate/noisegate.wat",
+    "build:dev:vocalcanceler": "wat2wasm -o vocalcanceler/vocalcanceler.wasm vocalcanceler/vocalcanceler.wat",
+    "build:dev:noisesuppressor": "emcc -O1 -Wall --no-entry -s EXPORTED_RUNTIME_METHODS=\"['ccall', 'cwrap', 'UTF8ToString']\" -s EXPORTED_FUNCTIONS=\"['_malloc', '_free']\" -o noisesuppressor/noisesuppressor.js noisesuppressor/noisesuppressor.cpp",
+    "build:dev:pitchshifter": "emcc -O1 -Wall --no-entry -s EXPORTED_RUNTIME_METHODS=\"['ccall', 'cwrap', 'UTF8ToString']\" -s EXPORTED_FUNCTIONS=\"['_malloc', '_free']\" -o pitchshifter/pitchshifter.js pitchshifter/pitchshifter.cpp",
+    "build:prod:noise": "wat2wasm -o noise/noise.wasm noise/noise.wat",
+    "build:prod:noisegate": "wat2wasm -o noisegate/noisegate.wasm noisegate/noisegate.wat",
+    "build:prod:vocalcanceler": "wat2wasm -o vocalcanceler/vocalcanceler.wasm vocalcanceler/vocalcanceler.wat",
+    "build:prod:noisesuppressor": "emcc -O3 -Wall --no-entry -s EXPORTED_RUNTIME_METHODS=\"['ccall', 'cwrap', 'UTF8ToString']\" -s EXPORTED_FUNCTIONS=\"['_malloc', '_free']\" -o noisesuppressor/noisesuppressor.js noisesuppressor/noisesuppressor.cpp",
+    "build:prod:pitchshifter": "emcc -O3 -Wall --no-entry -s EXPORTED_RUNTIME_METHODS=\"['ccall', 'cwrap', 'UTF8ToString']\" -s EXPORTED_FUNCTIONS=\"['_malloc', '_free']\" -o pitchshifter/pitchshifter.js pitchshifter/pitchshifter.cpp",
+    "build": "npm run clean && run-p build:dev:*",
+    "build:prod": "npm run clean && run-p build:prod:*",
     "dev": "node server.js"
   },
   "devDependencies": {
