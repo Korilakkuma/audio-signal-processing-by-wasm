@@ -1,6 +1,7 @@
 {
   "scripts": {
     "clean": "rm -rf ./**/*.{js,wasm}",
+    "format": "clang-format --verbose -style=LLVM -i ./*/*.cpp",
     "build:dev:noise": "wat2wasm -o noise/noise.wasm noise/noise.wat",
     "build:dev:noisegate": "wat2wasm -o noisegate/noisegate.wasm noisegate/noisegate.wat",
     "build:dev:vocalcanceler": "wat2wasm -o vocalcanceler/vocalcanceler.wasm vocalcanceler/vocalcanceler.wat",
