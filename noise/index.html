@@ -18,12 +18,16 @@
       </div>
     </section>
     <script>
+      const numberOfChannels = 2;
+
+      let type = '';
+
       function setupNoiseGenerator() {
         WebAssembly
           .instantiateStreaming(fetch('./noise.wasm'))
           .then(async ({ instance }) => {
             const audiocontext = new AudioContext();
-            const processor    = audiocontext.createScriptProcessor(0, 2, 2);
+            const processor    = audiocontext.createScriptProcessor(0, numberOfChannels, numberOfChannels);
 
             await audiocontext.resume();
 
@@ -31,31 +35,44 @@
 
             const bufferSize = processor.bufferSize;
 
-            let type = '';
+            const linearMemory = instance.exports.memory.buffer;
 
             processor.onaudioprocess = (event) => {
               const outputLs = event.outputBuffer.getChannelData(0);
               const outputRs = event.outputBuffer.getChannelData(1);
 
               for (let i = 0; i < bufferSize; i++) {
-                let output = 0;
-
                 switch (type) {
-                  case 'whitenoise':
-                    output = instance.exports.whitenoise(Math.random());
-                    break;
-                  case 'pinknoise':
-                    output = instance.exports.pinknoise(Math.random());
-                    break;
-                  case 'browniannoise':
-                    output = instance.exports.browniannoise(Math.random());
-                    break;
-                  default:
-                    break;
-                }
+                  case 'whitenoise': {
+                    const offsetInputL = instance.exports.whitenoiseL(Date.now(), bufferSize);
+                    const offsetInputR = instance.exports.whitenoiseR(Date.now(), bufferSize);
 
-                outputLs[i] = output;
-                outputRs[i] = output;
+                    outputLs.set(new Float32Array(linearMemory, offsetInputL, bufferSize));
+                    outputRs.set(new Float32Array(linearMemory, offsetInputR, bufferSize));
+
+                    break;
+                  }
+
+                  case 'pinknoise': {
+                    const offsetInputL = instance.exports.pinknoiseL(Date.now(), bufferSize);
+                    const offsetInputR = instance.exports.pinknoiseR(Date.now(), bufferSize);
+
+                    outputLs.set(new Float32Array(linearMemory, offsetInputL, bufferSize));
+                    outputRs.set(new Float32Array(linearMemory, offsetInputR, bufferSize));
+
+                    break;
+                  }
+
+                  case 'browniannoise': {
+                    const offsetInputL = instance.exports.browniannoiseL(Date.now(), bufferSize);
+                    const offsetInputR = instance.exports.browniannoiseR(Date.now(), bufferSize);
+
+                    outputLs.set(new Float32Array(linearMemory, offsetInputL, bufferSize));
+                    outputRs.set(new Float32Array(linearMemory, offsetInputR, bufferSize));
+
+                    break;
+                  }
+                }
               }
             };
 
