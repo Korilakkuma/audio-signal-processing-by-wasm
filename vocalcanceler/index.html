@@ -16,14 +16,16 @@
       </dl>
     </section>
     <script>
+      const numberOfChannels = 2;
+
+      let audio = null;
+      let depth = 0;
+
       WebAssembly
         .instantiateStreaming(fetch('./vocalcanceler.wasm'))
         .then(({ instance }) => {
           const audiocontext = new AudioContext();
-          const processor    = audiocontext.createScriptProcessor(8192, 2, 2);
-
-          let audio = null;
-          let depth = 0;
+          const processor    = audiocontext.createScriptProcessor(0, numberOfChannels, numberOfChannels);
 
           document.getElementById('file-uploader').addEventListener('change', async (event) => {
             processor.onaudioprocess = null;
@@ -46,16 +48,28 @@
 
             const bufferSize = processor.bufferSize;
 
+            const linearMemory = instance.exports.memory.buffer;
+
             processor.onaudioprocess = (event) => {
               const inputLs  = event.inputBuffer.getChannelData(0);
               const inputRs  = event.inputBuffer.getChannelData(1);
               const outputLs = event.outputBuffer.getChannelData(0);
               const outputRs = event.outputBuffer.getChannelData(1);
 
-              for (let i = 0; i < bufferSize; i++) {
-                outputLs[i] = instance.exports.vocalcanceler(inputLs[i], inputRs[i], depth);
-                outputRs[i] = instance.exports.vocalcanceler(inputRs[i], inputLs[i], depth);
-              }
+              const inputOffsetL = instance.exports.alloc_memory_inputLs(bufferSize);
+              const inputOffsetR = instance.exports.alloc_memory_inputRs(bufferSize);
+
+              const inputLinearMemoryLs = new Float32Array(linearMemory, inputOffsetL, bufferSize);
+              const inputLinearMemoryRs = new Float32Array(linearMemory, inputOffsetR, bufferSize);
+
+              inputLinearMemoryLs.set(inputLs);
+              inputLinearMemoryRs.set(inputRs);
+
+              const outputOffsetL = instance.exports.vocalcancelerL(depth, bufferSize);
+              const outputOffsetR = instance.exports.vocalcancelerR(depth, bufferSize);
+
+              outputLs.set(new Float32Array(linearMemory, outputOffsetL, bufferSize));
+              outputRs.set(new Float32Array(linearMemory, outputOffsetR, bufferSize));
             };
 
             audio.play();
@@ -65,6 +79,7 @@
             const range = event.currentTarget;
 
             depth = range.valueAsNumber;
+
             document.getElementById('output-depth').textContent = range.value;
           }, false);
         })
