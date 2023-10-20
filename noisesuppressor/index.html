@@ -8,89 +8,68 @@
   <body>
     <section>
       <nav><a href="../">TOP</a> &gt; &gt; Noise Suppressor</nav>
-      <span id="show-status">Click anywhere on this page</span>
-      <dl aria-disabled="true">
+      <dl>
         <dt><label for="range-threshold">Threshold: <span id="output-threshold">0</span></label></dt>
-        <dd><input type="range" id="range-threshold" disabled value="0" min="0" max="1" step="0.05" /></dd>
+        <dd><input type="range" id="range-threshold" value="0" min="0" max="1" step="0.05" /></dd>
       </dl>
     </section>
-    <script src="./noisesuppressor.js"></script>
     <script>
-      const audiocontext = new AudioContext();
-      const processor    = audiocontext.createScriptProcessor(0, 2, 2);
-
-      const statusText = document.getElementById('show-status');
+      const numberOfChannels = 2;
 
       let threshold = 0;
 
-      function startStream(stream) {
-        document.getElementById('show-status').textContent = 'onRuntimeInitialized';
-        document.querySelector('[aria-disabled]').removeAttribute('aria-disabled');
-        document.querySelector('[disabled]').removeAttribute('disabled');
+      WebAssembly
+        .instantiateStreaming(fetch('./noisesuppressor.wasm'))
+        .then(({ instance }) => {
+          const audiocontext = new AudioContext();
+          const processor    = audiocontext.createScriptProcessor(0, numberOfChannels, numberOfChannels);
 
-        const noisesuppressor = Module.cwrap('noisesuppressor', null, ['number', 'Float32Array', 'Float32Array', 'number']);
+          navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(async (stream) => {
+              await audiocontext.resume();
 
-        const source = audiocontext.createMediaStreamSource(stream);
+              const source = audiocontext.createMediaStreamSource(stream);
 
-        source.connect(processor);
-        processor.connect(audiocontext.destination);
+              source.connect(processor);
+              processor.connect(audiocontext.destination);
 
-        const bufferSize = processor.bufferSize;
+              const bufferSize = processor.bufferSize;
 
-        processor.onaudioprocess = (event) => {
-          const inputLs  = event.inputBuffer.getChannelData(0);
-          const inputRs  = event.inputBuffer.getChannelData(1);
-          const outputLs = event.outputBuffer.getChannelData(0);
-          const outputRs = event.outputBuffer.getChannelData(1);
+              const linearMemory = instance.exports.memory.buffer;
 
-          const pointerInputL  = Module._malloc(bufferSize * Module.HEAPF32.BYTES_PER_ELEMENT);
-          const pointerInputR  = Module._malloc(bufferSize * Module.HEAPF32.BYTES_PER_ELEMENT);
-          const pointerOutputL = Module._malloc(bufferSize * Module.HEAPF32.BYTES_PER_ELEMENT);
-          const pointerOutputR = Module._malloc(bufferSize * Module.HEAPF32.BYTES_PER_ELEMENT);
+              processor.onaudioprocess = (event) => {
+                const inputLs  = event.inputBuffer.getChannelData(0);
+                const inputRs  = event.inputBuffer.getChannelData(1);
+                const outputLs = event.outputBuffer.getChannelData(0);
+                const outputRs = event.outputBuffer.getChannelData(1);
 
-          const tmpLs = new Float32Array(Module.HEAPF32.buffer, pointerOutputL, bufferSize);
-          const tmpRs = new Float32Array(Module.HEAPF32.buffer, pointerOutputR, bufferSize);
+                const inputOffsetL = instance.exports.alloc_memory_inputLs(bufferSize);
+                const inputOffsetR = instance.exports.alloc_memory_inputRs(bufferSize);
 
-          Module.HEAPF32.set(inputLs, pointerInputL / Module.HEAPF32.BYTES_PER_ELEMENT);
-          Module.HEAPF32.set(inputRs, pointerInputR / Module.HEAPF32.BYTES_PER_ELEMENT);
-          Module.HEAPF32.set(tmpLs,   pointerOutputL / Module.HEAPF32.BYTES_PER_ELEMENT);
-          Module.HEAPF32.set(tmpRs,   pointerOutputR / Module.HEAPF32.BYTES_PER_ELEMENT);
+                const inputLinearMemoryLs = new Float32Array(linearMemory, inputOffsetL, bufferSize);
+                const inputLinearMemoryRs = new Float32Array(linearMemory, inputOffsetR, bufferSize);
 
-          noisesuppressor(threshold, pointerInputL, pointerOutputL, bufferSize);
-          noisesuppressor(threshold, pointerInputR, pointerOutputR, bufferSize);
+                inputLinearMemoryLs.set(inputLs);
+                inputLinearMemoryRs.set(inputRs);
 
-          outputLs.set(tmpLs);
-          outputRs.set(tmpRs);
+                const outputOffsetL = instance.exports.noisesuppressorL(threshold, bufferSize);
+                const outputOffsetR = instance.exports.noisesuppressorR(threshold, bufferSize);
 
-          Module._free(pointerInputL);
-          Module._free(pointerInputR);
-          Module._free(pointerOutputL);
-          Module._free(pointerOutputR);
-        };
-      }
+                outputLs.set(new Float32Array(linearMemory, outputOffsetL, bufferSize));
+                outputRs.set(new Float32Array(linearMemory, outputOffsetR, bufferSize));
+              };
+            })
+            .catch(console.error);
 
-      function setup() {
-        navigator.mediaDevices.getUserMedia({ audio: true })
-          .then(async (stream) => {
-            await audiocontext.resume();
+          document.getElementById('range-threshold').addEventListener('input', (event) => {
+            const range = event.currentTarget;
 
-            statusText.textContent = 'Loading WASM ...';
+            threshold = range.valueAsNumber;
 
-            startStream(stream);
-
-            document.removeEventListener('click', setup, false);
-          })
-          .catch(console.error);
-
-        document.getElementById('range-threshold').addEventListener('input', (event) => {
-          const range = event.currentTarget;
-
-          threshold = range.valueAsNumber;
-          document.getElementById('output-threshold').textContent = range.value;
-        }, false);
-      }
-
-      document.addEventListener('click', setup, false);
+            document.getElementById('output-threshold').textContent = range.value;
+          }, false);
+        })
+        .catch(console.error);
     </script>
   </body>
 </html>
