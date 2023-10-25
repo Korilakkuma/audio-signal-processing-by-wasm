@@ -26,6 +26,12 @@ $ source ./emsdk_env.sh
 $ npm run build
 ```
 
+the best optimization build,
+
+```bash
+$ npm run build:prod
+```
+
 ## Start local server
 
 ```bash
