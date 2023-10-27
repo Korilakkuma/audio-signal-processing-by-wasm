@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "clean": "rm -rf ./**/*.{js,wasm}",
+    "clean": "rm -rf ./**/*.wasm",
     "format": "clang-format --verbose -style=LLVM -i ./*/*.cpp",
     "build:dev:noise:wat": "wat2wasm -o noise/noise.wasm noise/noise.wat",
     "build:dev:noise:cpp": "emcc -O1 -Wall --no-entry -o noise/noise.wasm noise/noise.cpp",
