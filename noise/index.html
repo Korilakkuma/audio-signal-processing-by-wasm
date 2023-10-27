@@ -18,72 +18,29 @@
       </div>
     </section>
     <script>
-      const numberOfChannels = 2;
+      const audiocontext = new AudioContext();
 
-      let type = '';
+      const releaseAutoplayPolicy = async () => {
+        await audiocontext.resume();
+        await audiocontext.audioWorklet.addModule(`./processor.js`);
 
-      WebAssembly
-        .instantiateStreaming(fetch('./noise.wasm'))
-        .then(async ({ instance }) => {
-          const audiocontext = new AudioContext();
-          const processor    = audiocontext.createScriptProcessor(0, numberOfChannels, numberOfChannels);
+        const processor = new AudioWorkletNode(audiocontext, 'NoiseGeneratorProcessor');
 
-          processor.connect(audiocontext.destination);
+        const response    = await fetch('./noise.wasm');
+        const arrayBuffer = await response.arrayBuffer();
 
-          const bufferSize = processor.bufferSize;
+        processor.port.postMessage({ bytes: arrayBuffer });
 
-          const linearMemory = instance.exports.memory.buffer;
+        processor.connect(audiocontext.destination);
 
-          processor.onaudioprocess = (event) => {
-            const outputLs = event.outputBuffer.getChannelData(0);
-            const outputRs = event.outputBuffer.getChannelData(1);
+        document.getElementById('select-noise').addEventListener('change', (event) => {
+          processor.port.postMessage({ type: event.currentTarget.value });
+        }, false);
 
-            switch (type) {
-              case 'whitenoise': {
-                const offsetInputL = instance.exports.whitenoiseL(Date.now(), bufferSize);
-                const offsetInputR = instance.exports.whitenoiseR(Date.now(), bufferSize);
+        document.removeEventListener('click', releaseAutoplayPolicy, false);
+      };
 
-                outputLs.set(new Float32Array(linearMemory, offsetInputL, bufferSize));
-                outputRs.set(new Float32Array(linearMemory, offsetInputR, bufferSize));
-
-                break;
-              }
-
-              case 'pinknoise': {
-                const offsetInputL = instance.exports.pinknoiseL(Date.now(), bufferSize);
-                const offsetInputR = instance.exports.pinknoiseR(Date.now(), bufferSize);
-
-                outputLs.set(new Float32Array(linearMemory, offsetInputL, bufferSize));
-                outputRs.set(new Float32Array(linearMemory, offsetInputR, bufferSize));
-
-                break;
-              }
-
-              case 'browniannoise': {
-                const offsetInputL = instance.exports.browniannoiseL(Date.now(), bufferSize);
-                const offsetInputR = instance.exports.browniannoiseR(Date.now(), bufferSize);
-
-                outputLs.set(new Float32Array(linearMemory, offsetInputL, bufferSize));
-                outputRs.set(new Float32Array(linearMemory, offsetInputR, bufferSize));
-
-                break;
-              }
-            }
-          };
-
-          const releaseAutoplayPolicy = async () => {
-            await audiocontext.resume();
-
-            document.getElementById('select-noise').addEventListener('change', (event) => {
-              type = event.currentTarget.value;
-            }, false);
-
-            document.removeEventListener('click', releaseAutoplayPolicy, false);
-          };
-
-          document.addEventListener('click', releaseAutoplayPolicy, false);
-        })
-        .catch(console.error)
+      document.addEventListener('click', releaseAutoplayPolicy, false);
     </script>
   </body>
 </html>
