@@ -6,10 +6,10 @@
 
 #define absf(f) (f >= 0 ? f : (0 - f))
 
-static float *inputLs  = NULL;
-static float *inputRs  = NULL;
-static float *outputLs = NULL;
-static float *outputRs = NULL;
+static const int buffer_size = 128;
+
+static float *inputs  = NULL;
+static float *outputs = NULL;
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,69 +18,35 @@ extern "C" {
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE
 #endif
-float *noisegateL(const float level, const int buffer_size) {
-  if (outputLs) {
-    free(outputLs);
+float *noisegate(const float level) {
+  if (outputs) {
+    free(outputs);
   }
 
-  outputLs = (float *)calloc(buffer_size, sizeof(float));
+  outputs = (float *)calloc(buffer_size, sizeof(float));
 
   for (int n = 0; n < buffer_size; n++) {
-    if (absf(inputLs[n]) > level) {
-      outputLs[n] = inputLs[n];
+    if (absf(inputs[n]) > level) {
+      outputs[n] = inputs[n];
     } else {
-      outputLs[n] = 0.0f;
+      outputs[n] = 0.0f;
     }
   }
 
-  return outputLs;
+  return outputs;
 }
 
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE
 #endif
-float *noisegateR(const float level, const int buffer_size) {
-  if (outputRs) {
-    free(outputRs);
+float *alloc_memory_inputs(void) {
+  if (inputs) {
+    free(inputs);
   }
 
-  outputRs = (float *)calloc(buffer_size, sizeof(float));
+  inputs = (float *)calloc(buffer_size, sizeof(float));
 
-  for (int n = 0; n < buffer_size; n++) {
-    if (absf(inputRs[n]) > level) {
-      outputRs[n] = inputRs[n];
-    } else {
-      outputRs[n] = 0.0f;
-    }
-  }
-
-  return outputRs;
-}
-
-#ifdef __EMSCRIPTEN__
-EMSCRIPTEN_KEEPALIVE
-#endif
-float *alloc_memory_inputLs(const int buffer_size) {
-  if (inputLs) {
-    free(inputLs);
-  }
-
-  inputLs = (float *)calloc(buffer_size, sizeof(float));
-
-  return inputLs;
-}
-
-#ifdef __EMSCRIPTEN__
-EMSCRIPTEN_KEEPALIVE
-#endif
-float *alloc_memory_inputRs(const int buffer_size) {
-  if (inputRs) {
-    free(inputRs);
-  }
-
-  inputRs = (float *)calloc(buffer_size, sizeof(float));
-
-  return inputRs;
+  return inputs;
 }
 
 #ifdef __cplusplus
