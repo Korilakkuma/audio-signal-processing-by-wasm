@@ -4,6 +4,8 @@
 #include <emscripten.h>
 #endif
 
+static const int buffer_size = 128;
+
 static float *inputLs  = NULL;
 static float *inputRs  = NULL;
 static float *outputLs = NULL;
@@ -16,7 +18,7 @@ extern "C" {
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE
 #endif
-float *vocalcancelerL(const float depth, const int buffer_size) {
+float *vocalcancelerL(const float depth) {
   if (outputLs) {
     free(outputLs);
   }
@@ -33,7 +35,7 @@ float *vocalcancelerL(const float depth, const int buffer_size) {
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE
 #endif
-float *vocalcancelerR(const float depth, const int buffer_size) {
+float *vocalcancelerR(const float depth) {
   if (outputRs) {
     free(outputRs);
   }
@@ -50,7 +52,7 @@ float *vocalcancelerR(const float depth, const int buffer_size) {
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE
 #endif
-float *alloc_memory_inputLs(const int buffer_size) {
+float *alloc_memory_inputLs(void) {
   if (inputLs) {
     free(inputLs);
   }
@@ -63,7 +65,7 @@ float *alloc_memory_inputLs(const int buffer_size) {
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE
 #endif
-float *alloc_memory_inputRs(const int buffer_size) {
+float *alloc_memory_inputRs(void) {
   if (inputRs) {
     free(inputRs);
   }
