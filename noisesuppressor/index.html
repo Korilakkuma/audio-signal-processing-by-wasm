@@ -14,57 +14,29 @@
       </dl>
     </section>
     <script>
-      const numberOfChannels = 2;
+      const audiocontext = new AudioContext();
 
-      let threshold = 0;
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(async (stream) => {
+          await audiocontext.resume();
+          await audiocontext.audioWorklet.addModule(`./processor.js`);
 
-      WebAssembly
-        .instantiateStreaming(fetch('./noisesuppressor.wasm'))
-        .then(({ instance }) => {
-          const audiocontext = new AudioContext();
-          const processor    = audiocontext.createScriptProcessor(0, numberOfChannels, numberOfChannels);
+          const processor = new AudioWorkletNode(audiocontext, 'NoiseSuppressorProcessor');
 
-          navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(async (stream) => {
-              await audiocontext.resume();
+          const source = audiocontext.createMediaStreamSource(stream);
 
-              const source = audiocontext.createMediaStreamSource(stream);
+          source.connect(processor);
+          processor.connect(audiocontext.destination);
 
-              source.connect(processor);
-              processor.connect(audiocontext.destination);
+          const response    = await fetch('./noisesuppressor.wasm');
+          const arrayBuffer = await response.arrayBuffer();
 
-              const bufferSize = processor.bufferSize;
-
-              const linearMemory = instance.exports.memory.buffer;
-
-              processor.onaudioprocess = (event) => {
-                const inputLs  = event.inputBuffer.getChannelData(0);
-                const inputRs  = event.inputBuffer.getChannelData(1);
-                const outputLs = event.outputBuffer.getChannelData(0);
-                const outputRs = event.outputBuffer.getChannelData(1);
-
-                const inputOffsetL = instance.exports.alloc_memory_inputLs(bufferSize);
-                const inputOffsetR = instance.exports.alloc_memory_inputRs(bufferSize);
-
-                const inputLinearMemoryLs = new Float32Array(linearMemory, inputOffsetL, bufferSize);
-                const inputLinearMemoryRs = new Float32Array(linearMemory, inputOffsetR, bufferSize);
-
-                inputLinearMemoryLs.set(inputLs);
-                inputLinearMemoryRs.set(inputRs);
-
-                const outputOffsetL = instance.exports.noisesuppressorL(threshold, bufferSize);
-                const outputOffsetR = instance.exports.noisesuppressorR(threshold, bufferSize);
-
-                outputLs.set(new Float32Array(linearMemory, outputOffsetL, bufferSize));
-                outputRs.set(new Float32Array(linearMemory, outputOffsetR, bufferSize));
-              };
-            })
-            .catch(console.error);
+          processor.port.postMessage({ bytes: arrayBuffer });
 
           document.getElementById('range-threshold').addEventListener('input', (event) => {
             const range = event.currentTarget;
 
-            threshold = range.valueAsNumber;
+            processor.port.postMessage({ threshold: range.valueAsNumber });
 
             document.getElementById('output-threshold').textContent = range.value;
           }, false);
