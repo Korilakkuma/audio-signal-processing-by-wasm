@@ -18,99 +18,79 @@
       </dl>
     </section>
     <script>
-      const numberOfChannels = 2;
+      const audiocontext = new AudioContext();
 
-      let audio = null;
-      let pitch = 1;
+      let audio     = null;
+      let source    = null;
+      let processor = null;
+
       let whammyTimer = null;
 
-      WebAssembly
-        .instantiateStreaming(fetch('./pitchshifter.wasm'))
-        .then(({ instance }) => {
-          const audiocontext = new AudioContext();
-          const processor    = audiocontext.createScriptProcessor(0, numberOfChannels, numberOfChannels);
+      document.getElementById('file-uploader').addEventListener('change', async (event) => {
+        const file = event.target.files[0];
 
-          document.getElementById('file-uploader').addEventListener('change', async (event) => {
-            processor.onaudioprocess = null;
-            processor.disconnect(0);
+        if (audio === null) {
+          await audiocontext.resume();
+          await audiocontext.audioWorklet.addModule(`./processor.js`);
 
-            if (audio) {
-              audio.pause();
+          processor = new AudioWorkletNode(audiocontext, 'PitchShifterProcessor');
+
+          const response    = await fetch('./pitchshifter.wasm');
+          const arrayBuffer = await response.arrayBuffer();
+
+          processor.port.postMessage({ bytes: arrayBuffer });
+        } else {
+          audio.pause();
+        }
+
+        audio  = new Audio(window.URL.createObjectURL(file));
+        source = audiocontext.createMediaElementSource(audio);
+
+        source.connect(processor);
+        processor.connect(audiocontext.destination);
+
+        await audio.play();
+      }, false);
+
+      document.getElementById('range-pitch').addEventListener('input', (event) => {
+        const range = event.currentTarget;
+
+        if (processor) {
+          processor.port.postMessage({ pitch: range.valueAsNumber });
+        }
+
+        document.getElementById('output-pitch').textContent = range.value;
+      }, false);
+
+      document.getElementById('checkbox-whammy').addEventListener('click', (event) => {
+        let pitch = document.getElementById('range-pitch').valueAsNumber;
+
+        const checkbox = event.currentTarget;
+
+        if (checkbox.checked) {
+          const diff = 3 - pitch;
+          const rate = diff / 50;
+
+          whammyTimer = window.setInterval(() => {
+            pitch += rate;
+
+            if (processor) {
+              processor.port.postMessage({ pitch });
             }
 
-            await audiocontext.resume();
+            document.getElementById('range-pitch').valueAsNumber = pitch;
+            document.getElementById('output-pitch').textContent = Math.trunc(pitch * 100) / 100;
 
-            const objectURL = window.URL.createObjectURL(event.target.files[0]);
-
-            audio = new Audio(objectURL);
-
-            const source = audiocontext.createMediaElementSource(audio);
-
-            source.connect(processor);
-            processor.connect(audiocontext.destination);
-
-            const bufferSize = processor.bufferSize;
-
-            const linearMemory = instance.exports.memory.buffer;
-
-            processor.onaudioprocess = (event) => {
-              const inputLs  = event.inputBuffer.getChannelData(0);
-              const inputRs  = event.inputBuffer.getChannelData(1);
-              const outputLs = event.outputBuffer.getChannelData(0);
-              const outputRs = event.outputBuffer.getChannelData(1);
-
-              const inputOffsetL = instance.exports.alloc_memory_inputLs(bufferSize);
-              const inputOffsetR = instance.exports.alloc_memory_inputRs(bufferSize);
-
-              const inputLinearMemoryLs = new Float32Array(linearMemory, inputOffsetL, bufferSize);
-              const inputLinearMemoryRs = new Float32Array(linearMemory, inputOffsetR, bufferSize);
-
-              inputLinearMemoryLs.set(inputLs);
-              inputLinearMemoryRs.set(inputRs);
-
-              const outputOffsetL = instance.exports.pitchshifterL(pitch, bufferSize);
-              const outputOffsetR = instance.exports.pitchshifterR(pitch, bufferSize);
-
-              outputLs.set(new Float32Array(linearMemory, outputOffsetL, bufferSize));
-              outputRs.set(new Float32Array(linearMemory, outputOffsetR, bufferSize));
-            };
-
-            audio.play();
-          }, false);
-
-          document.getElementById('range-pitch').addEventListener('input', (event) => {
-            const range = event.currentTarget;
-
-            pitch = range.valueAsNumber;
-
-            document.getElementById('output-pitch').textContent = range.value;
-          }, false);
-
-          document.getElementById('checkbox-whammy').addEventListener('click', (event) => {
-            const checkbox = event.currentTarget;
-
-            if (checkbox.checked) {
-              const diff = 3 - pitch;
-              const rate = diff / 50;
-
-              whammyTimer = window.setInterval(() => {
-                pitch += rate;
-
-                document.getElementById('range-pitch').valueAsNumber = pitch;
-                document.getElementById('output-pitch').textContent = Math.trunc(pitch * 100) / 100;
-
-                if (pitch >= 3) {
-                  window.clearInterval(whammyTimer);
-                  whammyTimer = null;
-                }
-              }, 50);
-            } else {
+            if (pitch >= 3) {
               window.clearInterval(whammyTimer);
               whammyTimer = null;
             }
-          }, false);
-        })
-        .catch(console.error);
+          }, 50);
+        } else {
+          window.clearInterval(whammyTimer);
+          whammyTimer = null;
+        }
+      }, false);
     </script>
   </body>
 </html>

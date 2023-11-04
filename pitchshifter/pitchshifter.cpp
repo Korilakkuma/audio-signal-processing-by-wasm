@@ -5,10 +5,10 @@
 #include <emscripten.h>
 #endif
 
-static float *inputLs  = NULL;
-static float *inputRs  = NULL;
-static float *outputLs = NULL;
-static float *outputRs = NULL;
+static const int buffer_size = 128;
+
+static float *inputs  = NULL;
+static float *outputs = NULL;
 
 static inline int pow2(int n);
 static inline void swap(float *reals, float *imags, int i, int k);
@@ -23,12 +23,12 @@ extern "C" {
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE
 #endif
-float *pitchshifterL(const float pitch, const int buffer_size) {
-  if (outputLs) {
-    free(outputLs);
+float *pitchshifter(const float pitch) {
+  if (outputs) {
+    free(outputs);
   }
 
-  outputLs = (float *)calloc(buffer_size, sizeof(float));
+  outputs = (float *)calloc(buffer_size, sizeof(float));
 
   float *input_reals  = (float *)calloc(buffer_size, sizeof(float));
   float *input_imags  = (float *)calloc(buffer_size, sizeof(float));
@@ -36,7 +36,7 @@ float *pitchshifterL(const float pitch, const int buffer_size) {
   float *output_imags = (float *)calloc(buffer_size, sizeof(float));
 
   for (int n = 0; n < buffer_size; n++) {
-    input_reals[n] = inputLs[n];
+    input_reals[n] = inputs[n];
     input_imags[n] = 0.0f;
   }
 
@@ -54,15 +54,15 @@ float *pitchshifterL(const float pitch, const int buffer_size) {
     }
 
     if ((offset >= 0) && (offset < buffer_size)) {
-      output_reals[offset] += eq * input_reals[k];
-      output_imags[offset] += eq * input_imags[k];
+      output_reals[offset] += 2.0f * eq * input_reals[k];
+      output_imags[offset] += 2.0f * eq * input_imags[k];
     }
   }
 
   IFFT(output_reals, output_imags, buffer_size);
 
   for (int n = 0; n < buffer_size; n++) {
-    outputLs[n] = output_reals[n];
+    outputs[n] = output_reals[n];
   }
 
   free(input_reals);
@@ -70,86 +70,20 @@ float *pitchshifterL(const float pitch, const int buffer_size) {
   free(output_reals);
   free(output_imags);
 
-  return outputLs;
+  return outputs;
 }
 
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE
 #endif
-float *pitchshifterR(const float pitch, const int buffer_size) {
-  if (outputRs) {
-    free(outputRs);
+float *alloc_memory_inputs(void) {
+  if (inputs) {
+    free(inputs);
   }
 
-  outputRs = (float *)calloc(buffer_size, sizeof(float));
+  inputs = (float *)calloc(buffer_size, sizeof(float));
 
-  float *input_reals  = (float *)calloc(buffer_size, sizeof(float));
-  float *input_imags  = (float *)calloc(buffer_size, sizeof(float));
-  float *output_reals = (float *)calloc(buffer_size, sizeof(float));
-  float *output_imags = (float *)calloc(buffer_size, sizeof(float));
-
-  for (int n = 0; n < buffer_size; n++) {
-    input_reals[n] = inputRs[n];
-    input_imags[n] = 0.0f;
-  }
-
-  FFT(input_reals, input_imags, buffer_size);
-
-  int half_buffer_size = buffer_size / 2;
-
-  for (int k = 0; k < buffer_size; k++) {
-    int offset = (int)floorf(pitch * k);
-
-    int eq = 1;
-
-    if (k > half_buffer_size) {
-      eq = 0;
-    }
-
-    if ((offset >= 0) && (offset < buffer_size)) {
-      output_reals[offset] += eq * input_reals[k];
-      output_imags[offset] += eq * input_imags[k];
-    }
-  }
-
-  IFFT(output_reals, output_imags, buffer_size);
-
-  for (int n = 0; n < buffer_size; n++) {
-    outputRs[n] = output_reals[n];
-  }
-
-  free(input_reals);
-  free(input_imags);
-  free(output_reals);
-  free(output_imags);
-
-  return outputRs;
-}
-
-#ifdef __EMSCRIPTEN__
-EMSCRIPTEN_KEEPALIVE
-#endif
-float *alloc_memory_inputLs(const int buffer_size) {
-  if (inputLs) {
-    free(inputLs);
-  }
-
-  inputLs = (float *)calloc(buffer_size, sizeof(float));
-
-  return inputLs;
-}
-
-#ifdef __EMSCRIPTEN__
-EMSCRIPTEN_KEEPALIVE
-#endif
-float *alloc_memory_inputRs(const int buffer_size) {
-  if (inputRs) {
-    free(inputRs);
-  }
-
-  inputRs = (float *)calloc(buffer_size, sizeof(float));
-
-  return inputRs;
+  return inputs;
 }
 
 #ifdef __cplusplus
@@ -179,7 +113,7 @@ static inline void swap(float *reals, float *imags, int i, int k) {
 }
 
 static void FFT(float *reals, float *imags, int size) {
-  int number_of_stages = (int)log2((double)size);
+  int number_of_stages = (int)log2f((float)size);
 
   for (int stage = 1; stage <= number_of_stages; stage++) {
     for (int i = 0; i < pow2(stage - 1); i++) {
@@ -234,7 +168,7 @@ static void FFT(float *reals, float *imags, int size) {
 }
 
 static void IFFT(float *reals, float *imags, int size) {
-  int number_of_stages = (int)log2((double)size);
+  int number_of_stages = (int)log2f((float)size);
 
   for (int stage = 1; stage <= number_of_stages; stage++) {
     for (int i = 0; i < pow2(stage - 1); i++) {
