@@ -16,78 +16,47 @@
       </dt>
     </section>
     <script>
-      const numberOfChannels = 2;
+      const audiocontext = new AudioContext();
 
-      let audio = null;
-      let depth = 0;
+      let audio     = null;
+      let source    = null;
+      let processor = null;
 
-      WebAssembly
-        .instantiateStreaming(fetch('./vocalcanceler.wasm'))
-        .then(({ instance }) => {
-          const audiocontext = new AudioContext();
-          const processor    = audiocontext.createScriptProcessor(0, numberOfChannels, numberOfChannels);
+      document.getElementById('file-uploader').addEventListener('change', async (event) => {
+        const file = event.target.files[0];
 
-          document.getElementById('file-uploader').addEventListener('change', async (event) => {
-            processor.onaudioprocess = null;
-            processor.disconnect(0);
+        if (audio === null) {
+          await audiocontext.resume();
+          await audiocontext.audioWorklet.addModule(`./processor.js`);
 
-            if (audio) {
-              audio.pause();
-            }
+          processor = new AudioWorkletNode(audiocontext, 'VocalCancelerProcessor');
 
-            try {
-              await audiocontext.resume();
+          const response    = await fetch('./vocalcanceler.wasm');
+          const arrayBuffer = await response.arrayBuffer();
 
-              const objectURL = window.URL.createObjectURL(event.target.files[0]);
+          processor.port.postMessage({ bytes: arrayBuffer });
+        } else {
+          audio.pause();
+        }
 
-              audio = new Audio(objectURL);
+        audio  = new Audio(window.URL.createObjectURL(file));
+        source = audiocontext.createMediaElementSource(audio);
 
-              const source = audiocontext.createMediaElementSource(audio);
+        source.connect(processor);
+        processor.connect(audiocontext.destination);
 
-              source.connect(processor);
-              processor.connect(audiocontext.destination);
+        await audio.play();
+      }, false);
 
-              const bufferSize = processor.bufferSize;
+      document.getElementById('range-depth').addEventListener('input', (event) => {
+        const range = event.currentTarget;
 
-              const linearMemory = instance.exports.memory.buffer;
+        if (processor) {
+          processor.port.postMessage({ depth: range.valueAsNumber });
+        }
 
-              processor.onaudioprocess = (event) => {
-                const inputLs  = event.inputBuffer.getChannelData(0);
-                const inputRs  = event.inputBuffer.getChannelData(1);
-                const outputLs = event.outputBuffer.getChannelData(0);
-                const outputRs = event.outputBuffer.getChannelData(1);
-
-                const inputOffsetL = instance.exports.alloc_memory_inputLs(bufferSize);
-                const inputOffsetR = instance.exports.alloc_memory_inputRs(bufferSize);
-
-                const inputLinearMemoryLs = new Float32Array(linearMemory, inputOffsetL, bufferSize);
-                const inputLinearMemoryRs = new Float32Array(linearMemory, inputOffsetR, bufferSize);
-
-                inputLinearMemoryLs.set(inputLs);
-                inputLinearMemoryRs.set(inputRs);
-
-                const outputOffsetL = instance.exports.vocalcancelerL(depth, bufferSize);
-                const outputOffsetR = instance.exports.vocalcancelerR(depth, bufferSize);
-
-                outputLs.set(new Float32Array(linearMemory, outputOffsetL, bufferSize));
-                outputRs.set(new Float32Array(linearMemory, outputOffsetR, bufferSize));
-              };
-
-              audio.play();
-            } catch (e) {
-              console.error(e);
-            }
-          }, false);
-
-          document.getElementById('range-depth').addEventListener('input', (event) => {
-            const range = event.currentTarget;
-
-            depth = range.valueAsNumber;
-
-            document.getElementById('output-depth').textContent = range.value;
-          }, false);
-        })
-        .catch(console.error);
+        document.getElementById('output-depth').textContent = range.value;
+      }, false);
     </script>
   </body>
 </html>
