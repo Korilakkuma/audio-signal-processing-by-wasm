@@ -36,6 +36,8 @@ class NoiseGeneratorProcessor extends AudioWorkletProcessor {
       return true;
     }
 
+    console.time(`currentFrame ${currentFrame}`);
+
     const output = outputs[0];
 
     const linearMemory = this.instance.exports.memory.buffer;
@@ -67,6 +69,8 @@ class NoiseGeneratorProcessor extends AudioWorkletProcessor {
         }
       }
     }
+
+    console.timeEnd(`currentFrame ${currentFrame}`);
 
     return true;
   }
