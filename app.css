@@ -27,6 +27,15 @@ h1 {
   text-shadow: -1px -1px 0px rgba(0, 0, 0, 0.2);
 }
 
+h2 {
+  font-size: 20px;
+  font-weight: normal;
+}
+
+p {
+  margin: 8px 12px;
+}
+
 ul {
   margin-left: 24px;
 }
