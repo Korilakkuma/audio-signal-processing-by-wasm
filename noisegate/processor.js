@@ -24,6 +24,8 @@ class NoiseGateProcessor extends AudioWorkletProcessor {
       return false;
     }
 
+    console.time(`currentFrame ${currentFrame}`);
+
     const input  = inputs[0];
     const output = outputs[0];
 
@@ -40,6 +42,8 @@ class NoiseGateProcessor extends AudioWorkletProcessor {
 
       output[channelNumber].set(new Float32Array(linearMemory, offsetOutput, 128));
     }
+
+    console.timeEnd(`currentFrame ${currentFrame}`);
 
     return true;
   }
