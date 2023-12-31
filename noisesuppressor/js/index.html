@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <title>Noise Suppressor | Audio Signal Processing by WebAssembly</title>
-    <link rel="stylesheet" href="../app.css" />
+    <link rel="stylesheet" href="../../app.css" />
   </head>
   <body>
     <section>
-      <nav><a href="../../">TOP</a> &gt;&gt; Noise Suppressor (perform by WebAssembly) | <a href="./js/">Compare performance by JavaScript</a></nav>
+      <nav><a href="../../">TOP</a> &gt;&gt; Noise Suppressor (perform by JavaScript) | <a href="../">Compare performance by WebAssembly</a></nav>
       <dl>
         <dt><label for="range-threshold">Threshold: <span id="output-threshold">0</span></label></dt>
         <dd><input type="range" id="range-threshold" value="0" min="0" max="1" step="0.05" /></dd>
@@ -27,11 +27,6 @@
 
           source.connect(processor);
           processor.connect(audiocontext.destination);
-
-          const response    = await fetch('./noisesuppressor.wasm');
-          const arrayBuffer = await response.arrayBuffer();
-
-          processor.port.postMessage({ bytes: arrayBuffer });
 
           document.getElementById('range-threshold').addEventListener('input', (event) => {
             const range = event.currentTarget;
