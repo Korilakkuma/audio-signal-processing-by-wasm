@@ -24,6 +24,8 @@ class VocalCancelerProcessor extends AudioWorkletProcessor {
       return false;
     }
 
+    console.time(`currentFrame ${currentFrame}`);
+
     const input  = inputs[0];
     const output = outputs[0];
 
@@ -54,6 +56,8 @@ class VocalCancelerProcessor extends AudioWorkletProcessor {
 
     outputLs.set(new Float32Array(linearMemory, outputOffsetL, 128));
     outputRs.set(new Float32Array(linearMemory, outputOffsetR, 128));
+
+    console.timeEnd(`currentFrame ${currentFrame}`);
 
     return true;
   }
