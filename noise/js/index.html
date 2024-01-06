@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <title>Noise | Audio Signal Processing by WebAssembly</title>
-    <link rel="stylesheet" href="../app.css" />
+    <link rel="stylesheet" href="../../app.css" />
   </head>
   <body>
     <section>
-      <nav><a href="../">TOP</a> &gt;&gt; Noise (perform by WebAssembly) | <a href="./js/">Compare performance by JavaScript</a></nav>
+      <nav><a href="../../">TOP</a> &gt;&gt; Noise (perform by JavaScript) | <a href="../">Compare performance by WebAssembly</a></nav>
       <div>
         <select id="select-noise">
           <option value="" selected>SELECT NOISE</option>
@@ -25,11 +25,6 @@
         await audiocontext.audioWorklet.addModule(`./processor.js`);
 
         const processor = new AudioWorkletNode(audiocontext, 'NoiseGeneratorProcessor');
-
-        const response    = await fetch('./noise.wasm');
-        const arrayBuffer = await response.arrayBuffer();
-
-        processor.port.postMessage({ bytes: arrayBuffer });
 
         processor.connect(audiocontext.destination);
 

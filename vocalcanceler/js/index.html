@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <title>Vocal Canceler | Audio Signal Processing by WebAssembly</title>
-    <link rel="stylesheet" href="../app.css" />
+    <link rel="stylesheet" href="../../app.css" />
   </head>
   <body>
     <section>
-      <nav><a href="../../">TOP</a> &gt;&gt; Vocal Canceler (perform by WebAssembly) | <a href="./js/">Compare performance by JavaScript</a></nav>
+      <nav><a href="../../">TOP</a> &gt;&gt; Vocal Canceler (perform by JavaScript) | <a href="../">Compare performance by WebAssembly</a></nav>
       <dl>
         <dt><label for="file-uploader">Upload Audio File</label></dt>
         <dd><input type="file" id="file-uploader" /></dd>
@@ -30,11 +30,6 @@
           await audiocontext.audioWorklet.addModule(`./processor.js`);
 
           processor = new AudioWorkletNode(audiocontext, 'VocalCancelerProcessor');
-
-          const response    = await fetch('./vocalcanceler.wasm');
-          const arrayBuffer = await response.arrayBuffer();
-
-          processor.port.postMessage({ bytes: arrayBuffer });
         } else {
           audio.pause();
         }
