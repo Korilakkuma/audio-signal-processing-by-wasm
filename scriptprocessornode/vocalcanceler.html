@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Vocal Canceler | Audio Signal Processing by WebAssembly</title>
+    <link rel="stylesheet" href="../app.css" />
+  </head>
+  <body>
+    <section>
+      <input type="file" id="file-uploader" />
+      <button type="button" id="button-start">start</button>
+      <button type="button" id="button-stop">stop</button>
+      <label><input type="range" id="range-value" value="0" min="0" max="1" step="0.05" /></label>
+      <label><input type="range" id="range-playback-rate" value="1" min="0.5" max="2" step="0.05" /></label>
+    </section>
+    <script>
+      const BASE_PATH = '.';
+
+      WebAssembly.instantiateStreaming(fetch(`${BASE_PATH}/vocalcanceler.wasm`))
+        .then(({ instance }) => {
+          const context = new AudioContext();
+
+          const processor = context.createScriptProcessor(4096, 2, 2);
+
+          const bufferSize = processor.bufferSize;
+
+          const wasm = instance.exports;
+
+          const linearMemory = wasm.memory.buffer;
+
+          processor.onaudioprocess = (event) => {
+            const inputLs = event.inputBuffer.getChannelData(0);
+            const inputRs = event.inputBuffer.getChannelData(1);
+
+            const outputLs = event.outputBuffer.getChannelData(0);
+            const outputRs = event.outputBuffer.getChannelData(1);
+
+            if (value === 0) {
+              outputLs.set(inputLs);
+              outputRs.set(inputRs);
+
+              return;
+            }
+
+            const offsetInputL = wasm.alloc_memory_inputLs();
+            const offsetInputR = wasm.alloc_memory_inputRs();
+
+            const inputLinearMemoryL = new Float32Array(linearMemory, offsetInputL, bufferSize);
+            const inputLinearMemoryR = new Float32Array(linearMemory, offsetInputR, bufferSize);
+
+            inputLinearMemoryL.set(inputLs);
+            inputLinearMemoryR.set(inputRs);
+
+            const offsetOutputL = wasm.vocalcanceler_on_spectrum(context.sampleRate, 100, 8000, 0.05);
+            const offsetOutputR = offsetOutputL + (bufferSize * Float32Array.BYTES_PER_ELEMENT);
+
+            const canceledInputLs = new Float32Array(linearMemory, offsetOutputL, bufferSize);
+            const canceledInputRs = new Float32Array(linearMemory, offsetOutputR, bufferSize);
+
+            for (let n = 0; n < bufferSize; n++) {
+              outputLs[n] = ((1 - value) * inputLs[n]) + (value * canceledInputLs[n]);
+              outputRs[n] = ((1 - value) * inputRs[n]) + (value * canceledInputRs[n]);
+            }
+          };
+
+          let source = null;
+          let buffer = null;
+          let value = 0;
+          let rate = 1;
+
+          document.getElementById('file-uploader').addEventListener('change', (event) => {
+            const file = event.currentTarget.files[0];
+
+            const reader = new FileReader();
+
+            reader.onload = async () => {
+              const arraybuffer = reader.result;
+
+              buffer = await context.decodeAudioData(arraybuffer);
+            };
+
+            reader.readAsArrayBuffer(file);
+          });
+
+          document.getElementById('button-start').addEventListener('click', () => {
+            if (buffer === null) {
+              return;
+            }
+
+            source = context.createBufferSource();
+
+            source.buffer = buffer;
+            source.playbackRate.value = rate;
+
+            source.connect(processor)
+            processor.connect(context.destination);
+
+            source.start(0);
+          });
+
+          document.getElementById('button-stop').addEventListener('click', () => {
+            if (source === null) {
+              return;
+            }
+
+            source.stop(0);
+          });
+
+          document.getElementById('range-value').addEventListener('input', (event) => {
+            value = event.currentTarget.valueAsNumber;
+          });
+
+          document.getElementById('range-playback-rate').addEventListener('input', (event) => {
+            rate = event.currentTarget.valueAsNumber;
+
+            if (source) {
+              source.playbackRate.value = rate;
+            }
+          });
+        })
+        .catch(console.error);
+    </script>
+  </body>
+</html>
