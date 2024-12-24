@@ -18,8 +18,10 @@
     "build:prod:vocalcanceler:cpp": "emcc -O3 -Wall --no-entry -o vocalcanceler/vocalcanceler.wasm vocalcanceler/vocalcanceler.cpp",
     "build:prod:noisesuppressor": "emcc -O3 -Wall --no-entry -o noisesuppressor/noisesuppressor.wasm noisesuppressor/noisesuppressor.cpp",
     "build:prod:pitchshifter": "emcc -O3 -Wall --no-entry -o pitchshifter/pitchshifter.wasm pitchshifter/pitchshifter.cpp",
+    "build:prod:scriptprocessornode:pitchshifter": "emcc -O3 -Wall --no-entry -o scriptprocessornode/pitchshifter.wasm scriptprocessornode/pitchshifter.cpp",
+    "build:prod:scriptprocessornode:vocalcanceler": "emcc -O3 -Wall --no-entry -o scriptprocessornode/vocalcanceler.wasm scriptprocessornode/vocalcanceler.cpp",
     "build": "npm run clean && run-p build:dev:* build:dev:*:cpp",
-    "build:prod": "npm run clean && run-p build:prod:* build:prod:*:cpp",
+    "build:prod": "npm run clean && run-p build:prod:* build:prod:*:cpp build:prod:scriptprocessornode:*",
     "dev": "node server.js"
   },
   "devDependencies": {
