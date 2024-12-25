@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Phase Vocoder &amp; Whammy | Audio Signal Processing by WebAssembly</title>
+    <link rel="stylesheet" href="../../app.css" />
+  </head>
+  <body>
+    <section>
+      <nav><a href="../../">TOP</a> &gt;&gt; Phase Vocoder (perform by JavaScript)</nav>
+      <dl>
+        <dt><label for="file-uploader">Upload Audio File</label></dt>
+        <dd><input type="file" id="file-uploader" /></dd>
+        <dt><label for="checkbox-whammy">Whammy</label></dt>
+        <dd><input type="checkbox" id="checkbox-whammy" /></dd>
+        <dt><label for="range-pitch">Pitch: <span id="output-pitch">1</span></label></dt>
+        <dd><input type="range" id="range-pitch" value="1" min="0.5" max="4" step="0.05" /></dd>
+      </dl>
+    </section>
+    <script>
+      const audiocontext = new AudioContext();
+
+      let audio     = null;
+      let source    = null;
+      let processor = null;
+
+      let whammyTimer = null;
+
+      document.getElementById('file-uploader').addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+
+        if (audio === null) {
+          await audiocontext.resume();
+          await audiocontext.audioWorklet.addModule(`./processor.js`);
+
+          processor = new AudioWorkletNode(audiocontext, 'PhaseVocoderProcessor', {
+            processorOptions: {
+              blockSize: 4096
+            }
+          });
+        } else {
+          audio.pause();
+        }
+
+        audio  = new Audio(window.URL.createObjectURL(file));
+        source = audiocontext.createMediaElementSource(audio);
+
+        source.connect(processor);
+        processor.connect(audiocontext.destination);
+
+        await audio.play();
+      }, false);
+
+      document.getElementById('range-pitch').addEventListener('input', (event) => {
+        const range = event.currentTarget;
+
+        if (processor) {
+          processor.port.postMessage({ pitch: range.valueAsNumber });
+        }
+
+        document.getElementById('output-pitch').textContent = range.value;
+      }, false);
+
+      document.getElementById('checkbox-whammy').addEventListener('click', (event) => {
+        let pitch = document.getElementById('range-pitch').valueAsNumber;
+
+        const checkbox = event.currentTarget;
+
+        if (checkbox.checked) {
+          const diff = 3 - pitch;
+          const rate = diff / 50;
+
+          whammyTimer = window.setInterval(() => {
+            pitch += rate;
+
+            if (processor) {
+              processor.port.postMessage({ pitch });
+            }
+
+            document.getElementById('range-pitch').valueAsNumber = pitch;
+            document.getElementById('output-pitch').textContent = Math.trunc(pitch * 100) / 100;
+
+            if (pitch >= 3) {
+              window.clearInterval(whammyTimer);
+              whammyTimer = null;
+            }
+          }, 50);
+        } else {
+          window.clearInterval(whammyTimer);
+          whammyTimer = null;
+        }
+      }, false);
+    </script>
+  </body>
+</html>
