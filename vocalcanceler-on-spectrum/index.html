@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Vocal Canceler on Spectrum | Audio Signal Processing by WebAssembly</title>
+    <link rel="stylesheet" href="../../app.css" />
+  </head>
+  <body>
+    <section>
+      <nav><a href="../../">TOP</a> &gt;&gt; Vocal Canceler on Spectrum (perform by JavaScript)</nav>
+      <dl>
+        <dt><label for="file-uploader">Upload Audio File</label></dt>
+        <dd><input type="file" id="file-uploader" /></dd>
+        <dt><label for="range-depth">Depth: <span id="output-depth">0</span></label></dt>
+        <dd><input type="range" id="range-depth" value="0" min="0" max="1" step="0.05" /></dd>
+        <dt><label for="range-frequency">Frequency: <span id="output-frequency">200</span> Hz</label></dt>
+        <dd><input type="range" id="range-frequency" value="200" min="50" max="1000" step="1" /></dd>
+        <dt><label for="range-frequency-range">Range: <span id="output-frequency-range">8000</span> Hz</label></dt>
+        <dd><input type="range" id="range-frequency-range" value="8000" min="1000" max="16000" step="100" /></dd>
+        <dt><label for="range-threshold">Threshold: <span id="output-threshold">0.01</span></label></dt>
+        <dd><input type="range" id="range-threshold" value="0.01" min="0.001" max="0.1" step="0.001" /></dd>
+      </dl>
+    </section>
+    <script>
+      const audiocontext = new AudioContext();
+
+      let audio     = null;
+      let source    = null;
+      let processor = null;
+
+      document.getElementById('file-uploader').addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+
+        if (audio === null) {
+          await audiocontext.resume();
+          await audiocontext.audioWorklet.addModule(`./processor.js`);
+
+          processor = new AudioWorkletNode(audiocontext, 'VocalCancelerProcessor', {
+            processorOptions: {
+              blockSize: 4096
+            }
+          });
+        } else {
+          audio.pause();
+        }
+
+        audio  = new Audio(window.URL.createObjectURL(file));
+        source = audiocontext.createMediaElementSource(audio);
+
+        source.connect(processor);
+        processor.connect(audiocontext.destination);
+
+        await audio.play();
+      }, false);
+
+      document.getElementById('range-depth').addEventListener('input', (event) => {
+        const range = event.currentTarget;
+
+        if (processor) {
+          processor.port.postMessage({ depth: range.valueAsNumber });
+        }
+
+        document.getElementById('output-depth').textContent = range.value;
+      }, false);
+
+      document.getElementById('range-frequency').addEventListener('input', (event) => {
+        const range = event.currentTarget;
+
+        if (processor) {
+          processor.port.postMessage({ frequency: range.valueAsNumber });
+        }
+
+        document.getElementById('output-frequency').textContent = range.value;
+      }, false);
+
+      document.getElementById('range-frequency-range').addEventListener('input', (event) => {
+        const range = event.currentTarget;
+
+        if (processor) {
+          processor.port.postMessage({ range: range.valueAsNumber });
+        }
+
+        document.getElementById('output-frequency-range').textContent = range.value;
+      }, false);
+
+      document.getElementById('range-threshold').addEventListener('input', (event) => {
+        const range = event.currentTarget;
+
+        if (processor) {
+          processor.port.postMessage({ threshold: range.valueAsNumber });
+        }
+
+        document.getElementById('output-threshold').textContent = range.value;
+      }, false);
+    </script>
+  </body>
+</html>
