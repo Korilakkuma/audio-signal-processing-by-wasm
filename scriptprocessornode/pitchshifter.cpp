@@ -15,7 +15,7 @@ extern "C" {
 #ifdef __EMSCRIPTEN__
 EMSCRIPTEN_KEEPALIVE
 #endif
-float *pitchshifter(const float pitch) {
+float *pitchshifter(const float pitch, const float speed) {
   if (outputs) {
     free(outputs);
   }
@@ -27,10 +27,12 @@ float *pitchshifter(const float pitch) {
   float *output_reals = (float *)calloc(buffer_size, sizeof(float));
   float *output_imags = (float *)calloc(buffer_size, sizeof(float));
 
-  window_function(inputs, buffer_size, RECTANGULAR);
+  float *window = (float *)calloc(buffer_size, sizeof(float));
+
+  window_function(window, buffer_size, RECTANGULAR);
 
   for (int n = 0; n < buffer_size; n++) {
-    input_reals[n] = inputs[n];
+    input_reals[n] = window[n] * inputs[n];
     input_imags[n] = 0.0f;
   }
 
@@ -39,7 +41,7 @@ float *pitchshifter(const float pitch) {
   int half_buffer_size = buffer_size / 2;
 
   for (int k = 0; k < buffer_size; k++) {
-    int offset = (int)floorf(pitch * k);
+    int offset = (int)floorf((pitch * (1 / speed)) * k);
 
     int eq = 1;
 
@@ -56,13 +58,15 @@ float *pitchshifter(const float pitch) {
   IFFT(output_reals, output_imags, buffer_size);
 
   for (int n = 0; n < buffer_size; n++) {
-    outputs[n] = output_reals[n];
+    outputs[n] = window[n] * output_reals[n];
   }
 
   free(input_reals);
   free(input_imags);
   free(output_reals);
   free(output_imags);
+
+  free(window);
 
   return outputs;
 }
