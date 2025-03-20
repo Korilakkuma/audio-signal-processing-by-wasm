@@ -7,7 +7,7 @@
 
 static const int buffer_size = 128;
 
-static float *outputs = NULL;
+static float *outputs = nullptr;
 
 static float b0 = 0.0f;
 static float b1 = 0.0f;

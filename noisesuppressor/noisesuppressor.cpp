@@ -7,8 +7,8 @@
 
 static const int buffer_size = 128;
 
-static float *inputs  = NULL;
-static float *outputs = NULL;
+static float *inputs  = nullptr;
+static float *outputs = nullptr;
 
 static inline int pow2(int n);
 static inline void swap(float *reals, float *imags, int i, int k);

@@ -6,10 +6,10 @@
 
 static const int buffer_size = 128;
 
-static float *inputLs  = NULL;
-static float *inputRs  = NULL;
-static float *outputLs = NULL;
-static float *outputRs = NULL;
+static float *inputLs  = nullptr;
+static float *inputRs  = nullptr;
+static float *outputLs = nullptr;
+static float *outputRs = nullptr;
 
 #ifdef __cplusplus
 extern "C" {
