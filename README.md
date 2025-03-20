@@ -13,8 +13,8 @@ $ npm install
 ```bash
 $ git clone https://github.com/emscripten-core/emsdk.git
 $ cd emsdk
-$ ./emsdk install latest  # Use `./emsdk install sdk-upstream-main-64bit` in case of Apple Silicon
-$ ./emsdk activate latest # Use `./emsdk activate sdk-upstream-main-64bit` in case of Apple Silicon
+$ ./emsdk install latest
+$ ./emsdk activate latest
 $ source ./emsdk_env.sh
 
 # if error occurred, execute `softwareupdate --install-rosetta`, then retry
