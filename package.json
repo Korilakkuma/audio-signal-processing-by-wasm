@@ -2,6 +2,7 @@
   "scripts": {
     "clean": "rm -rf ./**/*.wasm",
     "format": "clang-format --verbose -style=LLVM -i ./*/*.cpp",
+    "build:dev:FFT:cpp": "emcc -O1 -Wall --no-entry -o FFT/FFT.wasm FFT/FFT.cpp",
     "build:dev:noise:wat": "wat2wasm -o noise/noise.wasm noise/noise.wat",
     "build:dev:noise:cpp": "emcc -O1 -Wall --no-entry -o noise/noise.wasm noise/noise.cpp",
     "build:dev:noisegate:wat": "wat2wasm -o noisegate/noisegate.wasm noisegate/noisegate.wat",
@@ -10,6 +11,7 @@
     "build:dev:vocalcanceler:cpp": "emcc -O1 -Wall --no-entry -o vocalcanceler/vocalcanceler.wasm vocalcanceler/vocalcanceler.cpp",
     "build:dev:noisesuppressor": "emcc -O1 -Wall --no-entry -o noisesuppressor/noisesuppressor.wasm noisesuppressor/noisesuppressor.cpp",
     "build:dev:pitchshifter": "emcc -O1 -Wall --no-entry -o pitchshifter/pitchshifter.wasm pitchshifter/pitchshifter.cpp",
+    "build:prod:FFT:cpp": "emcc -O3 -Wall --no-entry -o FFT/FFT.wasm FFT/FFT.cpp",
     "build:prod:noise:wat": "wat2wasm -o noise/noise.wasm noise/noise.wat",
     "build:prod:noise:cpp": "emcc -O3 -Wall --no-entry -o noise/noise.wasm noise/noise.cpp",
     "build:prod:noisegate:cpp": "emcc -O3 -Wall --no-entry -o noisegate/noisegate.wasm noisegate/noisegate.cpp",
