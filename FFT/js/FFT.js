@@ -22,7 +22,7 @@ function swap(reals, imags, i, k) {
   imags[k] = tmp_imag;
 }
 
-function window_function(windows, size, window_function_type) {
+export function window_function(windows, size, window_function_type) {
   switch (window_function_type) {
     case HANNING: {
       for (let n = 0; n < size; n++) {
@@ -58,7 +58,7 @@ function window_function(windows, size, window_function_type) {
   }
 }
 
-function FFT(reals, imags, size) {
+export function FFT(reals, imags, size) {
   const number_of_stages = Math.log2(size);
 
   for (let stage = 1; stage <= number_of_stages; stage++) {
@@ -112,7 +112,7 @@ function FFT(reals, imags, size) {
   }
 }
 
-function IFFT(reals, imags, size) {
+export function IFFT(reals, imags, size) {
   const number_of_stages = Math.log2(size);
 
   for (let stage = 1; stage <= number_of_stages; stage++) {
