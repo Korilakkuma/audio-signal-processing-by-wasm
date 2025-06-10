@@ -66,3 +66,9 @@ select {
 dt {
   margin-top: 12px;
 }
+
+.flexbox {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}

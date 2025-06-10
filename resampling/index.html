@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Resampling | Audio Signal Processing by WebAssembly</title>
+    <link rel="stylesheet" href="../app.css" />
+  </head>
+  <body>
+    <section>
+      <dl>
+        <dt><label for="file-uploader">Upload Audio File</label></dt>
+        <dd class="flexbox"><input type="file" id="file-uploader" /><audio id="audio-element" crossorigin="anonymous" controls /></dd>
+        <dt class="flexbox"><label for="range-pitch">Pitch</label><span id="print-pitch-value">1.00</span></dt>
+        <dd><input type="range" id="range-pitch" value="1" min="0.5" max="4" step="0.05" /></dd>
+      </dl>
+    </section>
+    <script>
+      const audiocontext = new AudioContext();
+
+      const audioElement = document.getElementById('audio-element');
+
+      let processor = null;
+
+      let pitch = 1;
+
+      document.getElementById('file-uploader').addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+
+        if (audiocontext.state !== 'running') {
+          await audiocontext.resume();
+        }
+
+        if (processor === null) {
+          await audiocontext.audioWorklet.addModule('./processor.js');
+        }
+
+        processor = new AudioWorkletNode(audiocontext, 'ResamplingProcessor', {
+          processorOptions: {
+            frameSize: 256
+          }
+        });
+
+        audioElement.setAttribute('src', window.URL.createObjectURL(file));
+
+        audioElement.addEventListener('canplaythrough', async () => {
+          const source = new MediaElementAudioSourceNode(audiocontext, { mediaElement: audioElement });
+
+          source.connect(processor);
+          processor.connect(audiocontext.destination);
+        });
+      });
+
+      document.getElementById('range-pitch').addEventListener('input', (event) => {
+        pitch = event.currentTarget.valueAsNumber;
+
+        audioElement.playbackRate = pitch;
+
+        if (processor) {
+          processor.port.postMessage(pitch);
+        }
+
+        document.getElementById('print-pitch-value').textContent = pitch.toFixed(2);
+      });
+    </script>
+  </body>
+</html>
