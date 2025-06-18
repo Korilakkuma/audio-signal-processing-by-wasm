@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Offline Pitch Shifter (Time Stretch and Resampling) | Audio Signal Processing by WebAssembly</title>
+    <link rel="stylesheet" href="../app.css" />
+  </head>
+  <body>
+    <section>
+      <dl>
+        <dt><label for="file-uploader">Upload Audio File</label></dt>
+        <dd><input type="file" id="file-uploader" /></dd>
+        <dt class="flexbox"><label for="range-pitch">Pitch</label><span id="print-pitch-value">1.00</span></dt>
+        <dd><input type="range" id="range-pitch" value="1" min="0.5" max="4" step="0.05" /></dd>
+        <dt>Original</dt>
+        <dd><span id="print-original-duration">00:00</span></dd>
+        <dt>Pitch Shifted</dt>
+        <dd><span id="print-pitch-shifted-current-time">00:00</span> / <span id="print-pitch-shifted-duration">00:00</span></dd>
+      </dl>
+    </section>
+    <script>
+      function sinc(n) {
+        if (n === 0) {
+          return 1;
+        }
+
+        return Math.sin(n) / n;
+      }
+
+      function formatTime(sec) {
+        const m = Math.trunc(sec / 60).toString(10).padStart(2, '0');
+        const s = Math.trunc(sec % 60).toString(10).padStart(2, '0');
+
+        return `${m}:${s}`;
+      }
+
+      const audiocontext = new AudioContext();
+
+      const spanPrintOriginalDurationElement        = document.getElementById('print-original-duration');
+      const spanPrintPitchShiftedDurationElement    = document.getElementById('print-pitch-shifted-duration');
+      const spanPrintPitchShiftedCurrentTimeElement = document.getElementById('print-pitch-shifted-current-time');
+
+      let pitch = 1;
+
+      document.getElementById('file-uploader').addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+
+        if (audiocontext.state !== 'running') {
+          await audiocontext.resume();
+        }
+
+        const reader = new FileReader();
+
+        reader.readAsArrayBuffer(file);
+
+        reader.onload = async () => {
+          const audioBuffer = await audiocontext.decodeAudioData(reader.result);
+
+          const numberOfChannels = audioBuffer.numberOfChannels;
+
+          const resampleRate = audioBuffer.sampleRate / pitch;
+
+          const rate = 1 / pitch;
+
+          const length = Math.trunc(audioBuffer.length * (pitch >= 1 ? pitch : rate)) + 1;
+
+          const pitchShiftAudioBuffer = audiocontext.createBuffer(numberOfChannels, length, audioBuffer.sampleRate);
+
+          for (let channelNumber = 0; channelNumber < numberOfChannels; channelNumber++) {
+            const inputBuffer  = audioBuffer.getChannelData(channelNumber);
+            const outputBuffer = new Float32Array(length);
+
+            // Time Stretch
+            const templateSize = Math.trunc(resampleRate * 0.01);
+            const pMin = Math.trunc(resampleRate * 0.005);
+            const pMax = Math.trunc(resampleRate * 0.02);
+
+            let offset0 = 0;
+            let offset1 = 0;
+
+            const x = new Float32Array(templateSize);
+            const y = new Float32Array(templateSize);
+            const r = new Float32Array(templateSize);
+
+            while ((offset0 + (2 * pMax)) < length) {
+              if (rate === 1.0) {
+                outputBuffer.set(inputBuffer);
+                break;
+              }
+
+              for (let n = 0; n < templateSize; n++) {
+                x[n] = inputBuffer[offset0 + n];
+              }
+
+              let maxOfR = 0.0;
+              let p = pMin;
+
+              for (let m = pMin; m <= pMax; m++) {
+                for (let n = 0; n < templateSize; n++) {
+                  y[n] = inputBuffer[offset0 + m + n];
+                }
+
+                r[m] = 0.0;
+
+                for (let n = 0; n < templateSize; n++) {
+                  r[m] += x[n] * y[n];
+                }
+
+                if (r[m] > maxOfR) {
+                  maxOfR = r[m];
+                  p = m;
+                }
+              }
+
+              if (rate < 1.0) {
+                for (let n = 0; n < p; n++) {
+                  outputBuffer[offset1 + n] = inputBuffer[offset0 + n];
+                }
+              }
+
+              for (let n = 0; n < p; n++) {
+                if (rate > 1.0) {
+                  outputBuffer[offset1 + n]  = (inputBuffer[offset0 + n] * (p - n)) / p;
+                  outputBuffer[offset1 + n] += (inputBuffer[offset0 + p + n] * n) / p;
+                } else if (rate < 1.0) {
+                  outputBuffer[offset1 + p + n]  = (inputBuffer[offset0 + p + n] * (p - n)) / p;
+                  outputBuffer[offset1 + p + n] += (inputBuffer[offset0 + n] * n) / p;
+                }
+              }
+
+              let q = 0;
+
+              if (rate > 1.0) {
+                q = Math.trunc((p / (rate - 1.0)) + 0.5);
+              } else if (rate < 1.0) {
+                q = Math.trunc(((p * rate) / (1.0 - rate)) + 0.5);
+              }
+
+              if (rate > 1.0) {
+                for (let n = p; n < q; n++) {
+                  if ((offset0 + p + n) >= length) {
+                    break;
+                  }
+
+                  outputBuffer[offset1 + n] = inputBuffer[offset0 + p + n];
+                }
+
+                offset0 += p + q;
+                offset1 += q;
+              } else if (rate < 1.0) {
+                for (let n = p; n < q; n++) {
+                  if ((offset0 + n) >= length) {
+                    break;
+                  }
+
+                  outputBuffer[offset1 + p + n] = inputBuffer[offset0 + n];
+                }
+
+                offset0 += q;
+                offset1 += p + q;
+              }
+            }
+
+            // Resampling
+            // for (let n = 0; n < length; n++) {
+            //   const t = pitch * n;
+            //   const offset = Math.trunc(t);
+
+            //   const halfOfSincSize = 48 / 2;
+
+            //   for (let m = (offset - halfOfSincSize); m <= (offset + halfOfSincSize); m++) {
+            //     if ((m >= 0) && (m < inputBuffer.length)) {
+            //       outputBuffer[n] += inputBuffer[m] * sinc(Math.PI * (t - m));
+            //     }
+            //   }
+            // }
+
+            pitchShiftAudioBuffer.copyToChannel(outputBuffer, channelNumber);
+          }
+
+          const source = new AudioBufferSourceNode(audiocontext, { buffer: pitchShiftAudioBuffer });
+
+          // Resampling
+          source.playbackRate.value = pitch;
+
+          source.connect(audiocontext.destination);
+
+          const startTime = audiocontext.currentTime;
+
+          source.start(0);
+
+          let animationId = null;
+
+          const updateCurrentTime = () => {
+            const currentTime = audiocontext.currentTime - startTime;
+
+            spanPrintPitchShiftedCurrentTimeElement.textContent = formatTime(currentTime);
+
+            animationId = window.requestAnimationFrame(() => {
+              updateCurrentTime();
+            });
+          };
+
+          updateCurrentTime();
+
+          source.onended = () => {
+            window.cancelAnimationFrame(animationId);
+          };
+
+          spanPrintOriginalDurationElement.textContent     = formatTime(audioBuffer.duration);
+          spanPrintPitchShiftedDurationElement.textContent = formatTime(pitchShiftAudioBuffer.duration);
+        };
+      });
+
+      document.getElementById('range-pitch').addEventListener('input', (event) => {
+        pitch = event.currentTarget.valueAsNumber;
+
+        document.getElementById('print-pitch-value').textContent = pitch.toFixed(2);
+      });
+    </script>
+  </body>
+</html>
