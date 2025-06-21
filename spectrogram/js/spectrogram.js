@@ -5,6 +5,11 @@ const paddingLeft   = 60;
 
 const fillColor = 'rgba(153 153 153 / 60%)';
 
+const minFrequency =  62.5;
+const maxFrequency = 16000;
+
+const frequencies = [62.5, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+
 /**
  * @param {SVGSVGElement} svg
  */
@@ -54,17 +59,19 @@ const renderCoordinateTexts = (svg, analyser, sampleRate, duration) => {
 
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
-  for (let k = 0, len = analyser.frequencyBinCount; k < len; k++) {
-    const x = paddingLeft - 8;
-    const y = (paddingTop + innerHeight) - (k * (sampleRate / len)) * (innerHeight / len);
+  const frequencyResolution = sampleRate / analyser.fftSize;
 
-    if (y < paddingTop) {
-      break;
-    }
+  frequencies.forEach((f) => {
+    const x = paddingLeft - 8;
+    const y = (paddingTop + innerHeight) - Math.trunc(Math.log10(f / minFrequency) / Math.log10(maxFrequency / minFrequency) * innerHeight);
 
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
 
-    text.textContent = `${Math.trunc(k * (sampleRate / analyser.fftSize))} Hz`;
+    if (f > 10000) {
+      text.textContent = `${f / 1000} kHz`;
+    } else {
+      text.textContent = `${f} Hz`;
+    }
 
     text.setAttribute('x', x.toString(10));
     text.setAttribute('y', y.toString(10));
@@ -74,7 +81,7 @@ const renderCoordinateTexts = (svg, analyser, sampleRate, duration) => {
     text.setAttribute('font-size', '12px');
 
     g.appendChild(text);
-  }
+  });
 
   const samples = Math.ceil(duration * sampleRate);
 
@@ -121,11 +128,21 @@ const renderSpectrogram = (svg, analyser, sampleRate, time, duration) => {
 
   const numberOfSamples = 1 / sampleRate;
 
+  const frequencyResolution = sampleRate / analyser.fftSize;
+
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
   for (let k = 0; k < analyser.frequencyBinCount; k++) {
+    if (k === 0) {
+      continue;
+    }
+
     const x = (time / duration) * innerWidth + paddingLeft;
-    const y = innerHeight - (k * (sampleRate / analyser.fftSize) * (innerHeight / analyser.frequencyBinCount));
+    const y = (paddingTop + innerHeight) - Math.trunc(Math.log10((k * frequencyResolution) / minFrequency) / Math.log10(maxFrequency / minFrequency) * innerHeight);
+
+    if (y > (paddingTop + innerHeight)) {
+      continue;
+    }
 
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
 
@@ -140,9 +157,9 @@ const renderSpectrogram = (svg, analyser, sampleRate, time, duration) => {
     }
 
     rect.setAttribute('x', x.toString(10));
-    rect.setAttribute('y', (y - 2).toString(10));
+    rect.setAttribute('y', (y - (innerHeight / frequencies.length) + 10).toString(10));
     rect.setAttribute('width', '1');
-    rect.setAttribute('height', ((innerHeight / 20)).toString(10));
+    rect.setAttribute('height', ((innerHeight / frequencies.length)).toString(10));
     rect.setAttribute('fill', `#${hex}`);
     rect.setAttribute('stroke', 'none');
 
