@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Realtime Spectrogram | Audio Signal Processing by WebAssembly</title>
+    <link rel="stylesheet" href="../app.css" />
+  </head>
+  <body>
+    <section>
+      <dl>
+        <dt><label for="file-uploader">Upload Audio File</label></dt>
+        <dd><input type="file" id="file-uploader" /></dd>
+        <dd><audio id="audio-element" controls /></dd>
+        <dd>
+          <svg id="svg-spectrogram" width="1200" height="600" />
+        </dd>
+      </dl>
+    </section>
+    <script src="./js/spectrogram.js"></script>
+    <script>
+      const audiocontext = new AudioContext();
+
+      const svgElement = document.getElementById('svg-spectrogram');
+
+      const audioElement = document.getElementById('audio-element');
+      const source       = new MediaElementAudioSourceNode(audiocontext, { mediaElement: audioElement });
+      const analyser     = new AnalyserNode(audiocontext, { maxDecibels: -30, minDecibels: -100 });
+
+      const interval = 60;
+
+      renderSpectrogramGraph(svgElement);
+
+      document.getElementById('file-uploader').addEventListener('change', async (event) => {
+        if (audiocontext.state !== 'running') {
+          await audiocontext.resume();
+        }
+
+        const file = event.target.files[0];
+
+        audioElement.setAttribute('src', window.URL.createObjectURL(file));
+
+        source.connect(analyser);
+        analyser.connect(audiocontext.destination);
+      });
+
+      audioElement.addEventListener('loadedmetadata', () => {
+        clearSpectrogram(svgElement);
+        renderCoordinateTexts(svgElement, analyser, audiocontext.sampleRate, interval);
+      });
+
+      audioElement.addEventListener('timeupdate', () => {
+        renderSpectrogram(svgElement, analyser, audiocontext.sampleRate, audioElement.currentTime, interval);
+      });
+    </script>
+  </body>
+</html>
