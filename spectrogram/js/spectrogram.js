@@ -5,10 +5,26 @@ const paddingLeft   = 60;
 
 const fillColor = 'rgba(153 153 153 / 60%)';
 
-const minFrequency =  62.5;
-const maxFrequency = 16000;
-
 const frequencies = [62.5, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+
+const minFrequency = frequencies[0];
+const maxFrequency = frequencies[frequencies.length - 1];
+
+const ratio      = maxFrequency / minFrequency;
+const log10Ratio = Math.log10(ratio);
+
+/**
+ * @param {Uint8Array[0]} data
+ */
+const numberToJetColor = (data) => {
+  const rgba = 4 * (data / 255);
+
+  const r = Math.max(0, Math.min(255, Math.trunc(Math.min((rgba - 1.5), (0 - rgba + 4.5)) * 255)));
+  const g = Math.max(0, Math.min(255, Math.trunc(Math.min((rgba - 0.5), (0 - rgba + 3.5)) * 255)));
+  const b = Math.max(0, Math.min(255, Math.trunc(Math.min((rgba + 0.5), (0 - rgba + 2.5)) * 255)));
+
+  return `rgb(${r} ${g} ${b})`;
+};
 
 /**
  * @param {SVGSVGElement} svg
@@ -63,7 +79,7 @@ const renderCoordinateTexts = (svg, analyser, sampleRate, duration) => {
 
   frequencies.forEach((f) => {
     const x = paddingLeft - 8;
-    const y = (paddingTop + innerHeight) - Math.trunc(Math.log10(f / minFrequency) / Math.log10(maxFrequency / minFrequency) * innerHeight);
+    const y = (paddingTop + innerHeight) - Math.trunc((Math.log10(f / minFrequency) / log10Ratio) * innerHeight);
 
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
 
@@ -137,8 +153,9 @@ const renderSpectrogram = (svg, analyser, sampleRate, time, duration) => {
       continue;
     }
 
+    const f = k * frequencyResolution;
     const x = (time / duration) * innerWidth + paddingLeft;
-    const y = (paddingTop + innerHeight) - Math.trunc(Math.log10((k * frequencyResolution) / minFrequency) / Math.log10(maxFrequency / minFrequency) * innerHeight);
+    const y = (paddingTop + innerHeight) - Math.trunc((Math.log10(f / minFrequency) / log10Ratio) * innerHeight);
 
     if (y > (paddingTop + innerHeight)) {
       continue;
@@ -146,25 +163,17 @@ const renderSpectrogram = (svg, analyser, sampleRate, time, duration) => {
 
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
 
-    let hex = '';
-
-    if (data[k] > 128) {
-      hex = `${(Math.trunc(1.5 * data[k]).toString(16))}0000`;
-    } else if (data[k] > 64) {
-      hex = `ff${(Math.trunc(1.5 * data[k]).toString(16))}00`;
-    } else {
-      hex = `000${(data[k].toString(16))}f`;
-    }
+    const color = numberToJetColor(data[k]);
 
     rect.setAttribute('x', x.toString(10));
     rect.setAttribute('y', (y - (innerHeight / frequencies.length) + 10).toString(10));
     rect.setAttribute('width', '1');
     rect.setAttribute('height', ((innerHeight / frequencies.length)).toString(10));
-    rect.setAttribute('fill', `#${hex}`);
+    rect.setAttribute('fill', color);
     rect.setAttribute('stroke', 'none');
 
     g.appendChild(rect);
   }
 
   svg.appendChild(g);
-}
+};
