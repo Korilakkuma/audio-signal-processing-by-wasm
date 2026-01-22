@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FFT (Fast Fourier Transform) | Audio Signal Processing by WebAssembly</title>
+    <link rel="stylesheet" href="../app.css" />
+  </head>
+  <body>
+    <section>
+      <nav><a href="../../">TOP</a> &gt;&gt; FFT (perform by WebAssembly SIMD)</nav>
+      <dl>
+        <dt><label for="select-fft-size">Select FFT size</label></dt>
+        <dd>
+          <select id="select-fft-size">
+            <option value="128" selected>128 (0x80)</option>
+            <option value="256">256</option>
+            <option value="512">512</option>
+            <option value="1024">1024</option>
+            <option value="2048">2048</option>
+            <option value="4096">4096</option>
+            <option value="8192">8192</option>
+            <option value="16384">16384</option>
+            <option value="32768">32768 (0x8000)</option>
+            <option value="65536">65536 (0xFFFF + 1)</option>
+          </select>
+        </dd>
+      </dl>
+      <dl>
+        <dt>start time</dt>
+        <dd id="print-start-time">0 msec</dd>
+        <dt>end time</dt>
+        <dd id="print-end-time">0 msec</dd>
+        <dt>process time</dt>
+        <dd id="print-process-time">0 msec</dd>
+      </dl>
+    </section>
+    <script>
+      WebAssembly.instantiateStreaming(fetch('./FFT.wasm'))
+        .then(({ instance }) => {
+          const printStartTimeElement   = document.getElementById('print-start-time');
+          const printEndTimeElement     = document.getElementById('print-end-time');
+          const printProcessTimeElement = document.getElementById('print-process-time');
+
+          const wasm = instance.exports;
+
+          document.getElementById('select-fft-size').addEventListener('change', (event) => {
+            printStartTimeElement.textContent   = '0 msec';
+            printEndTimeElement.textContent     = '0 msec';
+            printProcessTimeElement.textContent = '0 msec';
+
+            const fftSize = Number(event.currentTarget.value);
+
+            const reals = new Float32Array(fftSize);
+            const imags = new Float32Array(fftSize);
+
+            for (let n = 0; n < fftSize; n++) {
+              reals[n] = Math.sin((2 * Math.PI * 440 * n) / 48000);
+              imags[n] = 0.0;
+            }
+
+            const startTime = performance.now();
+
+            console.time(`FFT size is ${fftSize}`);
+
+            const linearMemory = wasm.memory.buffer;
+
+            const offsetReal = wasm.alloc_memory_reals(fftSize);
+            const offsetImag = wasm.alloc_memory_imags(fftSize);
+
+            const realsLinearMemory = new Float32Array(linearMemory, offsetReal, fftSize);
+            const imagsLinearMemory = new Float32Array(linearMemory, offsetImag, fftSize);
+
+            realsLinearMemory.set(reals);
+            imagsLinearMemory.set(imags);
+
+            wasm.FFT(fftSize);
+
+            reals.set(realsLinearMemory);
+            imags.set(imagsLinearMemory);
+
+            console.timeEnd(`FFT size is ${fftSize}`);
+
+            const endTime = performance.now();
+
+            const processTime = endTime - startTime;
+
+            printStartTimeElement.textContent   = `${startTime} msec`;
+            printEndTimeElement.textContent     = `${endTime} msec`;
+            printProcessTimeElement.textContent = `${processTime} msec (${processTime * 1000} μsec)`;
+          });
+        })
+        .catch(console.error);
+    </script>
+  </body>
+</html>
