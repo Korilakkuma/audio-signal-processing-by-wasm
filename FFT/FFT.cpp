@@ -48,10 +48,12 @@ EMSCRIPTEN_KEEPALIVE
 void window_function(float *const window, const size_t size, const WINDOW_FUNCTION function) {
   switch (function) {
     case HANNING: {
-      for (int n = 0; n < size; n++) {
-        if (n & 0x00000001) {
+      if (size & 0x00000001) {
+        for (int n = 0; n < size; n++) {
           window[n] = 0.5 - (0.5 * cosf(((2 * M_PI) * (n + 0.5)) / size));
-        } else {
+        }
+      } else {
+        for (int n = 0; n < size; n++) {
           window[n] = 0.5 - (0.5 * cosf(((2 * M_PI) * n) / size));
         }
       }
@@ -60,10 +62,12 @@ void window_function(float *const window, const size_t size, const WINDOW_FUNCTI
     }
 
     case HAMMING: {
-      for (int n = 0; n < size; n++) {
-        if (n & 0x00000001) {
+      if (size & 0x00000001) {
+        for (int n = 0; n < size; n++) {
           window[n] = 0.54 - (0.46 * cosf(((2 * M_PI) * (n + 0.5)) / size));
-        } else {
+        }
+      } else {
+        for (int n = 0; n < size; n++) {
           window[n] = 0.54 - (0.46 * cosf(((2 * M_PI) * n) / size));
         }
       }

@@ -25,10 +25,12 @@ function swap(reals, imags, i, k) {
 export function window_function(windows, size, window_function_type) {
   switch (window_function_type) {
     case HANNING: {
-      for (let n = 0; n < size; n++) {
-        if ((n % 2) === 0) {
+      if ((size % 2) === 0) {
+        for (let n = 0; n < size; n++) {
           windows[n] = 0.5 - (0.5 * Math.cos(((2 * Math.PI) * n) / size));
-        } else {
+        }
+      } else {
+        for (let n = 0; n < size; n++) {
           windows[n] = 0.5 - (0.5 * Math.cos(((2 * Math.PI) * (n + 0.5)) / size));
         }
       }
@@ -37,10 +39,12 @@ export function window_function(windows, size, window_function_type) {
     }
 
     case HAMMING: {
-      for (let n = 0; n < size; n++) {
-        if ((n % 2) === 0) {
+      if ((size % 2) === 0) {
+        for (let n = 0; n < size; n++) {
           windows[n] = 0.54 - (0.46 * Math.cos(((2 * M_PI) * n) / size));
-        } else {
+        }
+      } else {
+        for (let n = 0; n < size; n++) {
           windows[n] = 0.54 - (0.46 * Math.cos(((2 * M_PI) * (n + 0.5)) / size));
         }
       }
