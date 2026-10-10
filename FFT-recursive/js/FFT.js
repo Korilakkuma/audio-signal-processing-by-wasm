@@ -35,28 +35,21 @@ const dft = (complexes, inverse) => {
     const omega = (inverse ? (2 * Math.PI) : (-2 * Math.PI)) / size;
 
     for (let block = 0; block < length; block += size) {
-      const evens = [];
-      const odds  = [];
-
       for (let n = 0; n < halfOfSize; n++) {
-        evens[n] = complexes[n + block];
-        odds[n]  = complexes[n + block + halfOfSize];
-      }
+        const evenIndex = n + block;
+        const oddIndex  = n + block + halfOfSize;
 
-      const rotators = [];
+        const [oddReal, oddImag] = complexes[oddIndex];
 
-      for (let n = 0; n < halfOfSize; n++) {
-        const [real, imag] = odds[n];
         const radian = omega * n;
 
-        rotators[n] = [((real * Math.cos(radian)) - (imag * Math.sin(radian))), ((real * Math.sin(radian)) + (imag * Math.cos(radian)))];
-      }
+        const rotatorReal = (oddReal * Math.cos(radian)) - (oddImag * Math.sin(radian));
+        const rotatorImag = (oddReal * Math.sin(radian)) + (oddImag * Math.cos(radian));
 
-      for (let n = 0; n < halfOfSize; n++) {
-        const [real, imag] = evens[n];
+        const [evenReal, evenImag] = complexes[evenIndex];
 
-        complexes[n + block]              = [(real + rotators[n][0]), (imag + rotators[n][1])];
-        complexes[n + block + halfOfSize] = [(real - rotators[n][0]), (imag - rotators[n][1])];
+        complexes[evenIndex] = [(evenReal + rotatorReal), (evenImag + rotatorImag)];
+        complexes[oddIndex]  = [(evenReal - rotatorReal), (evenImag - rotatorImag)];
       }
     }
   }
