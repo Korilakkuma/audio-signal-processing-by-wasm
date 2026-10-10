@@ -3,46 +3,62 @@
  * @param {boolean} inverse
  */
 const dft = (complexes, inverse) => {
-  const size = complexes.length;
+  const length = complexes.length;
 
-  if (size === 1) {
-    return complexes;
+  if (length === 1) {
+    return;
   }
 
-  const halfOfSize = size / 2;
+  let j = 0;
 
-  const evens = [];
-  const odds  = [];
+  for (let n = 0; n < length; n++) {
+    if (n < j) {
+      const tmp = complexes[n];
 
-  for (let n = 0; n < halfOfSize; n++) {
-    evens[n] = complexes[(2 * n) + 0];
-    odds[n]  = complexes[(2 * n) + 1];
+      complexes[n] = complexes[j];
+      complexes[j] = tmp;
+    }
+
+    let bit = length >> 1;
+
+    while (bit & j) {
+      j ^= bit;
+      bit >>= 1;
+    }
+
+    j ^= bit;
   }
 
-  dft(evens, inverse);
-  dft(odds, inverse);
+  for (let size = 2;  size <= complexes.length; size *= 2) {
+    const halfOfSize = size / 2;
 
-  const rotators = [];
+    const omega = (inverse ? (2 * Math.PI) : (-2 * Math.PI)) / size;
 
-  const w = (inverse ? (2 * Math.PI) : (-2 * Math.PI)) / size;
+    for (let block = 0; block < length; block += size) {
+      const evens = [];
+      const odds  = [];
 
-  for (let n = 0; n < halfOfSize; n++) {
-    const [real, imag] = odds[n];
-    const radian = w * n;
+      for (let n = 0; n < halfOfSize; n++) {
+        evens[n] = complexes[n + block];
+        odds[n]  = complexes[n + block + halfOfSize];
+      }
 
-    rotators[n] = [((real * Math.cos(radian)) - (imag * Math.sin(radian))), ((real * Math.sin(radian)) + (imag * Math.cos(radian)))];
-  }
+      const rotators = [];
 
-  for (let n = 0; n < halfOfSize; n++) {
-    const [real, imag] = evens[n];
+      for (let n = 0; n < halfOfSize; n++) {
+        const [real, imag] = odds[n];
+        const radian = omega * n;
 
-    complexes[n] = [(real + rotators[n][0]), (imag + rotators[n][1])];
-  }
+        rotators[n] = [((real * Math.cos(radian)) - (imag * Math.sin(radian))), ((real * Math.sin(radian)) + (imag * Math.cos(radian)))];
+      }
 
-  for (let n = halfOfSize; n < size; n++) {
-    const [real, imag] = evens[n - halfOfSize];
+      for (let n = 0; n < halfOfSize; n++) {
+        const [real, imag] = evens[n];
 
-    complexes[n] = [(real - rotators[n - halfOfSize][0]), (imag - rotators[n - halfOfSize][1])];
+        complexes[n + block]              = [(real + rotators[n][0]), (imag + rotators[n][1])];
+        complexes[n + block + halfOfSize] = [(real - rotators[n][0]), (imag - rotators[n][1])];
+      }
+    }
   }
 };
 
