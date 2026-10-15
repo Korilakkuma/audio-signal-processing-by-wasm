@@ -11,6 +11,7 @@
       <dl>
         <dt><label for="file-uploader">Upload Audio File</label></dt>
         <dd><input type="file" id="file-uploader" /></dd>
+        <dd><audio id="audio" controls></audio></dd>
         <dt><label for="range-depth">Depth: <span id="output-depth">0</span></label></dt>
         <dd><input type="range" id="range-depth" value="0" min="0" max="1" step="0.05" /></dd>
         <dt><label for="range-frequency">Frequency: <span id="output-frequency">200</span> Hz</label></dt>
@@ -24,14 +25,14 @@
     <script>
       const audiocontext = new AudioContext();
 
-      let audio     = null;
-      let source    = null;
       let processor = null;
+
+      const audioElement = document.getElementById('audio');
 
       document.getElementById('file-uploader').addEventListener('change', async (event) => {
         const file = event.target.files[0];
 
-        if (audio === null) {
+        if (!audioElement.getAttribute('src')) {
           await audiocontext.resume();
           await audiocontext.audioWorklet.addModule(`./processor.js`);
 
@@ -40,17 +41,18 @@
               blockSize: 2048
             }
           });
+
+          const source = audiocontext.createMediaElementSource(audioElement);
+
+          source.connect(processor);
+          processor.connect(audiocontext.destination);
         } else {
-          audio.pause();
+          audioElement.pause();
         }
 
-        audio  = new Audio(window.URL.createObjectURL(file));
-        source = audiocontext.createMediaElementSource(audio);
+        audioElement.setAttribute('src', window.URL.createObjectURL(file));
 
-        source.connect(processor);
-        processor.connect(audiocontext.destination);
-
-        await audio.play();
+        await audioElement.play();
       }, false);
 
       document.getElementById('range-depth').addEventListener('input', (event) => {
